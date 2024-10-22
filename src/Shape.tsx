@@ -5,10 +5,6 @@ import vec from "./utils/vec";
 import { useShapeStore } from "./hooks/useShapeStore";
 import ShapeFactory from "./components/ShapeFactory";
 
-const shouldSnapToGrid = (shape: ShapeType) => {
-  return shape.type === "image";
-};
-
 export function Shape({
   shape,
   rDragging,
@@ -19,7 +15,6 @@ export function Shape({
   readOnly,
   selected,
   camera,
-  gridSize,
   stackIndex = 0,
 }: {
   shape: ShapeType;
@@ -37,7 +32,6 @@ export function Shape({
   ) => void;
   readOnly: boolean;
   selected: boolean;
-  gridSize: number;
   stackIndex?: number;
 }) {
   const draggingShapeRefs = useRef<Record<string, ShapeType>>({});
@@ -54,13 +48,6 @@ export function Shape({
     shapes,
     setEditingText,
   } = useShapeStore();
-
-  const snapToGrid = (point: number[]) => {
-    if (shouldSnapToGrid(shape)) {
-      return point.map((coord) => Math.round(coord / gridSize) * gridSize);
-    }
-    return point;
-  };
 
   const updateSelection = (shapeId: string) =>
     selectedShapeIds.includes(shapeId) ? selectedShapeIds : [shapeId];
@@ -85,7 +72,7 @@ export function Shape({
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
     setInitialPointerPosition([x, y]);
 
-    const point = snapToGrid([x, y]);
+    const point = [x, y];
 
     const localSelectedShapeIds = updateSelection(shape.id);
     const id = e.currentTarget.id;
@@ -102,7 +89,7 @@ export function Shape({
     if (mode !== "select" || readOnly || !rDragging.current) return;
 
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
-    const point = snapToGrid([x, y]);
+    const point = [x, y];
 
     if (initialPointerPosition) {
       const [initialX, initialY] = initialPointerPosition;
