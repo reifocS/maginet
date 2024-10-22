@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Camera, Mode, Shape as ShapeType } from "./Canvas";
 import { screenToCanvas } from "./utils/vec";
 import vec from "./utils/vec";
@@ -35,11 +35,6 @@ export function Shape({
   stackIndex?: number;
 }) {
   const draggingShapeRefs = useRef<Record<string, ShapeType>>({});
-  const [initialPointerPosition, setInitialPointerPosition] = useState<
-    number[] | null
-  >(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const DRAG_THRESHOLD = 2;
 
   const {
     setShapes,
@@ -70,17 +65,17 @@ export function Shape({
     e.stopPropagation();
 
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
-    setInitialPointerPosition([x, y]);
 
     const point = [x, y];
 
     const localSelectedShapeIds = updateSelection(shape.id);
     const id = e.currentTarget.id;
-    const currentShape = shapes.find((s) => s.id === id)!;
+    console.log("onPointerDown", id);
     updateDraggingRef({
-      shape: currentShape,
+      shape: shapes.find((s) => s.id === id)!,
       origin: point,
     });
+    console.log("onPointerDown", rDragging.current);
     updateDraggingShapeRefs(localSelectedShapeIds);
     setSelectedShapeIds(localSelectedShapeIds);
   };
@@ -90,32 +85,20 @@ export function Shape({
 
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
     const point = [x, y];
+    const delta = vec.sub(point, rDragging.current.origin);
 
-    if (initialPointerPosition) {
-      const [initialX, initialY] = initialPointerPosition;
-      const distance = Math.sqrt((x - initialX) ** 2 + (y - initialY) ** 2);
-
-      if (!isDragging && distance > DRAG_THRESHOLD) {
-        setIsDragging(true);
-      }
-    }
-
-    if (isDragging) {
-      const delta = vec.sub(point, rDragging.current.origin);
-
-      setShapes((prevShapes) =>
-        prevShapes.map((s) =>
-          s.id === rDragging.current?.shape.id
-            ? { ...s, point: vec.add(rDragging.current.shape.point, delta) }
-            : draggingShapeRefs.current[s.id]
-            ? {
-                ...s,
-                point: vec.add(draggingShapeRefs.current[s.id].point, delta),
-              }
-            : s
-        )
-      );
-    }
+    setShapes((prevShapes) =>
+      prevShapes.map((s) =>
+        s.id === rDragging.current?.shape.id
+          ? { ...s, point: vec.add(rDragging.current.shape.point, delta) }
+          : draggingShapeRefs.current[s.id]
+          ? {
+              ...s,
+              point: vec.add(draggingShapeRefs.current[s.id].point, delta),
+            }
+          : s
+      )
+    );
   };
 
   const onPointerUp = (e: React.PointerEvent<SVGElement>) => {
@@ -123,8 +106,6 @@ export function Shape({
     e.stopPropagation();
     updateDraggingRef(null);
     draggingShapeRefs.current = {};
-    setInitialPointerPosition(null);
-    setIsDragging(false);
   };
 
   const handleClick = (e: React.MouseEvent<SVGElement>) => {
@@ -148,7 +129,6 @@ export function Shape({
     id: shape.id,
     onPointerDown: readOnly ? undefined : onPointerDown,
     onPointerMove: readOnly ? undefined : onPointerMove,
-    onPointerLeave: readOnly ? undefined : onPointerUp,
     onPointerUp: readOnly ? undefined : onPointerUp,
     onClick: handleClick,
     style: {
