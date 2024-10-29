@@ -1,6 +1,7 @@
 import React from "react";
 import { Shape as ShapeType } from "../Canvas";
 import { colors } from "../utils/colors";
+import { DOMVector } from "../utils/vec";
 
 const TokenShape = ({
   shape,
@@ -10,9 +11,11 @@ const TokenShape = ({
   commonProps: React.SVGProps<SVGGElement>;
 }) => {
   const { point, size, color, text, fontSize } = shape;
-  const [x, y] = point;
-  const [width, height] = size;
+  const vector = new DOMVector(point[0], point[1], size[0], size[1]);
 
+  const coordinates = vector.toDOMRect();
+
+  const { x, y, width, height } = coordinates;
   return (
     <g {...commonProps}>
       <ellipse
