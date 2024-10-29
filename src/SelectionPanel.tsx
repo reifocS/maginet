@@ -69,9 +69,9 @@ export function SelectionPanel({
   return (
     <div className="selection-panel">
       <div>
-        <button onClick={onDrawCard}>Draw ({deck?.length})</button>
-      </div>
-      <div>
+        <div>
+          <button onClick={onDrawCard}>Draw ({deck?.length})</button>
+        </div>
         <input
           type="radio"
           id="create"
@@ -83,32 +83,32 @@ export function SelectionPanel({
             setShapeType("text");
           }}
         />
-        <label htmlFor="create">Create Text</label>
-      </div>
-      <div>
-        <input
-          type="radio"
-          id="select"
-          name="action"
-          value="select"
-          checked={mode === "select"}
-          onChange={() => setMode("select")}
-        />
-        <label htmlFor="select">Select</label>
-      </div>
-      <div>
-        <input
-          type="radio"
-          id="add"
-          name="action"
-          value="add"
-          checked={mode === "create" && shapeType === "token"}
-          onChange={() => {
-            setMode("create");
-            setShapeType("token");
-          }}
-        />
-        <label htmlFor="add">Add Token</label>
+        <label htmlFor="create">Text</label>
+        <div>
+          <input
+            type="radio"
+            id="add"
+            name="action"
+            value="add"
+            checked={mode === "create" && shapeType === "token"}
+            onChange={() => {
+              setMode("create");
+              setShapeType("token");
+            }}
+          />
+          <label htmlFor="add">Token</label>
+        </div>
+        <div>
+          <input
+            type="radio"
+            id="select"
+            name="action"
+            value="select"
+            checked={mode === "select"}
+            onChange={() => setMode("select")}
+          />
+          <label htmlFor="select">Select</label>
+        </div>
       </div>
       <div>
         <button onClick={onMulligan}>Mulligan</button>

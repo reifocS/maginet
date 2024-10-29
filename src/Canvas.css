@@ -33,6 +33,7 @@
   gap: var(--panel-gap);
   justify-content: space-between;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .selection-panel button {
