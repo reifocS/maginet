@@ -6,7 +6,7 @@ interface EditableTextProps {
   editingTextShape?: Shape;
   onTextBlur: () => void;
   editingText: { id: string; text: string };
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   setEditingText: (value: { id: string; text: string }) => void;
   setShapes: React.Dispatch<React.SetStateAction<Shape[]>>;
 }
@@ -45,7 +45,7 @@ export default function EditableText({
     return { x, y };
   }
   const { x, y } = determineTextCoordinates();
-  function onTextChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function onTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const updatedText = e.target.value;
     setEditingText({ ...editingText, text: updatedText });
     setShapes((prevShapes) =>
@@ -64,9 +64,8 @@ export default function EditableText({
 
   return (
     <foreignObject x={x} y={y} height={bounds.height} width={bounds.width}>
-      <input
+      <textarea
         ref={inputRef}
-        type="text"
         value={editingText.text ?? ""}
         onChange={onTextChange}
         onBlur={onTextBlur}
@@ -78,18 +77,18 @@ export default function EditableText({
           height: "100%",
           border: "none",
           padding: "4px",
-          margin: "0px",
           whiteSpace: "pre",
           resize: "none",
           minHeight: 1,
           minWidth: 1,
-          outline: "none",
-          backgroundColor: "#e0e0e0",
+          outline: 0,
           overflow: "hidden",
           pointerEvents: "all",
+          backfaceVisibility: "hidden",
+          display: "inline-block",
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && !e.shiftKey) {
             onTextBlur();
           }
         }}

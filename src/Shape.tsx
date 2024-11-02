@@ -26,7 +26,7 @@ export function Shape({
   camera: Camera;
   color?: string;
   setHoveredCard: React.Dispatch<React.SetStateAction<string | null>>;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   updateDraggingRef: (
     newRef: { shape: ShapeType; origin: number[] } | null
   ) => void;

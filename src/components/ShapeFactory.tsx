@@ -22,7 +22,7 @@ function ShapeFactory({
   selected: boolean;
   readOnly: boolean;
   setEditingText: (value: { id: string; text: string }) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   setHoveredCard: React.Dispatch<React.SetStateAction<string | null>>;
   stackIndex: number;
 }) {
@@ -36,7 +36,11 @@ function ShapeFactory({
     e.stopPropagation();
     if (readOnly) return;
     setEditingText({ id: shape.id, text: shape.text! });
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      // highlight the text
+      inputRef.current?.setSelectionRange(0, shape.text?.length ?? 0);
+    }, 0);
   };
 
   switch (shape.type) {

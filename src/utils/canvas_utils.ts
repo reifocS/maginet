@@ -53,21 +53,27 @@ export function getTextWidth(text: string, font: string) {
 if (document.getElementById("__textMeasure")) {
   document.getElementById("__textMeasure")!.remove();
 }
+// A div used for measurement
 const mdiv = document.createElement("pre");
 mdiv.id = "__textMeasure";
-mdiv.style.whiteSpace = "pre";
-mdiv.style.width = "auto";
-mdiv.style.border = "1px solid red";
-mdiv.style.padding = "4px";
-mdiv.style.lineHeight = "1";
-mdiv.style.margin = "0px";
-mdiv.style.opacity = "0";
-mdiv.style.position = "absolute";
-mdiv.style.top = "-500px";
-mdiv.style.left = "0px";
-mdiv.style.zIndex = "9999";
-mdiv.setAttribute("readonly", "true");
+
+Object.assign(mdiv.style, {
+  whiteSpace: "pre",
+  width: "auto",
+  border: "1px solid red",
+  padding: "4px",
+  margin: "0px",
+  opacity: "0",
+  position: "absolute",
+  top: "-500px",
+  left: "0px",
+  zIndex: "9999",
+});
+
+mdiv.tabIndex = -1;
+
 document.body.appendChild(mdiv);
+
 export const getBounds = (
   text: string,
   x: number,
@@ -76,10 +82,10 @@ export const getBounds = (
 ) => {
   mdiv.innerHTML = text || " "; // + '&nbsp;'
   mdiv.style.font = `${fontSize || 16}px Arial`;
+  mdiv.innerHTML = text + "&zwj;";
 
   const [minX, minY] = [x, y];
   const [width, height] = [mdiv.offsetWidth, mdiv.offsetHeight];
-
   return {
     minX,
     maxX: minX + width,

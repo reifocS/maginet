@@ -31,21 +31,18 @@ const TextShape = ({
           height: "100%",
           border: "none",
           padding: "4px",
-          margin: "0px",
-          // GLOW EFFECT FOR SELECTED TEXT
           whiteSpace: "pre",
-          resize: "none",
           minHeight: 1,
           minWidth: 1,
-          outline: "none",
-          verticalAlign: "middle",
+          outline: 0,
+          backgroundColor: "transparent",
           overflow: "hidden",
-          fontSize: `${fontSize || 16}px`,
-          fontFamily: "Arial",
           userSelect: "none",
-          display: "flex",
-          alignItems: "center",
+          display: "inline-block",
+          position: "relative",
           color: selected ? "red" : color,
+          fontSize: `${fontSize}px`,
+          fontFamily: "Arial",
         }}
       >
         {text}

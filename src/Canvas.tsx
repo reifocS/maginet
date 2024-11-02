@@ -196,7 +196,7 @@ export default function Canvas() {
     origin: number[];
   } | null>(null);
   // for editing text in the canvas
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
   const drawCard = () => {
     dispatch({ type: "DRAW_CARD" });
@@ -339,6 +339,8 @@ export default function Canvas() {
         setEditingText({ id, text: "" });
         setTimeout(() => {
           inputRef.current?.focus();
+          // highlight all text
+          inputRef.current?.setSelectionRange(0, inputRef.current.value.length);
         }, 0);
       } else {
         createShape(shapeType, point);
