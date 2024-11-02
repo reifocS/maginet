@@ -35,14 +35,14 @@ const TextShape = ({
           minHeight: 1,
           minWidth: 1,
           outline: 0,
-          backgroundColor: "transparent",
           overflow: "hidden",
           userSelect: "none",
           display: "inline-block",
           position: "relative",
-          color: selected ? "red" : color,
+          color,
           fontSize: `${fontSize}px`,
           fontFamily: "Arial",
+          backgroundColor: selected ? "rgba(0, 0, 0, 0.1)" : "transparent",
         }}
       >
         {text}

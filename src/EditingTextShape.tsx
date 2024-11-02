@@ -86,6 +86,7 @@ export default function EditableText({
           pointerEvents: "all",
           backfaceVisibility: "hidden",
           display: "inline-block",
+          backgroundColor: "transparent",
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
