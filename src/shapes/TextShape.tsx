@@ -1,6 +1,8 @@
 import React from "react";
 import { Shape as ShapeType } from "../Canvas";
+import { getBounds } from "../utils/canvas_utils";
 
+// TODO Refactor use foreignObject to render text to keep return to lines
 const TextShape = ({
   shape,
   commonProps,
@@ -13,23 +15,42 @@ const TextShape = ({
   selected: boolean;
 }) => {
   const { point, text, color, fontSize } = shape;
-  const [x, y] = point;
+  const bounds = getBounds(text ?? "", point[0], point[1], fontSize);
   return (
-    <text
-      {...commonProps}
-      x={x}
-      y={y}
+    <foreignObject
+      x={point[0]}
+      y={point[1]}
+      width={bounds.width}
+      height={bounds.height}
       transform={transform}
-      style={{
-        ...commonProps.style,
-        userSelect: "none",
-        fontSize: fontSize || 16,
-        fill: selected ? "#4a90e2" : color ?? "black",
-        fontFamily: "Arial",
-      }}
     >
-      {text}
-    </text>
+      <div
+        {...(commonProps as unknown as React.HTMLProps<HTMLDivElement>)}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          padding: "4px",
+          margin: "0px",
+          // GLOW EFFECT FOR SELECTED TEXT
+          whiteSpace: "pre",
+          resize: "none",
+          minHeight: 1,
+          minWidth: 1,
+          outline: "none",
+          verticalAlign: "middle",
+          overflow: "hidden",
+          fontSize: `${fontSize || 16}px`,
+          fontFamily: "Arial",
+          userSelect: "none",
+          display: "flex",
+          alignItems: "center",
+          color: selected ? "red" : color,
+        }}
+      >
+        {text}
+      </div>
+    </foreignObject>
   );
 };
 
