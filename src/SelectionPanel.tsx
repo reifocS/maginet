@@ -146,9 +146,6 @@ export function SelectionPanel({
           Select Deck
         </button>
       </div>
-      <label>
-        your id: <input type="text" defaultValue={peer?.id} readOnly />
-      </label>
       <div style={{ display: "flex", gap: "1rem" }}>
         <input
           type="text"
@@ -160,27 +157,50 @@ export function SelectionPanel({
 
       {connections.size > 0 && <div>connected ({connections.size})</div>}
       {modal}
-      {canEditFontSize && (
-        <select
-          value={selectedShapes[0]?.fontSize}
-          onChange={(e) => {
-            setShapes((prevShapes) =>
-              prevShapes.map((shape) =>
-                selectedShapeIds.includes(shape.id)
-                  ? { ...shape, fontSize: parseInt(e.target.value) }
-                  : shape
-              )
-            );
-          }}
-        >
-          <option value={12}>12</option>
-          <option value={16}>16</option>
-          <option value={24}>24</option>
-          <option value={32}>32</option>
-          <option value={48}>48</option>
-          <option value={64}>64</option>
-        </select>
-      )}
+      <div>
+        <label>
+          your id: <input type="text" defaultValue={peer?.id} readOnly />
+        </label>
+        {selectedShapes.length === 1 && (
+          <label>
+            color
+            <select
+              onChange={(e) => changeColor(e.target.value)}
+              value={selectedShapes[0]?.color ?? "#000000"}
+            >
+              {Object.entries(colors).map(([value]) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {canEditFontSize && (
+          <label>
+            font size
+            <select
+              value={selectedShapes[0]?.fontSize}
+              onChange={(e) => {
+                setShapes((prevShapes) =>
+                  prevShapes.map((shape) =>
+                    selectedShapeIds.includes(shape.id)
+                      ? { ...shape, fontSize: parseInt(e.target.value) }
+                      : shape
+                  )
+                );
+              }}
+            >
+              <option value={12}>12</option>
+              <option value={16}>16</option>
+              <option value={24}>24</option>
+              <option value={32}>32</option>
+              <option value={48}>48</option>
+              <option value={64}>64</option>
+            </select>
+          </label>
+        )}
+      </div>
       {allCards && (
         <form
           style={{ display: "flex", gap: "1rem" }}
@@ -252,18 +272,6 @@ export function SelectionPanel({
           Return to center
         </button>
       </div>
-      {selectedShapes.length === 1 && (
-        <select
-          onChange={(e) => changeColor(e.target.value)}
-          value={selectedShapes[0]?.color ?? "#000000"}
-        >
-          {Object.entries(colors).map(([value]) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      )}
     </div>
   );
 }
