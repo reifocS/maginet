@@ -10,7 +10,7 @@ const RectangleShape = ({
   shape: ShapeType;
   commonProps: React.SVGProps<SVGRectElement>;
 }) => {
-  const { point, size, text, fontSize, color } = shape;
+  const { point, size, text, fontSize } = shape;
   const vector = new DOMVector(point[0], point[1], size[0], size[1]);
   const coordinates = vector.toDOMRect();
   const { x, y, width, height } = coordinates;
@@ -18,14 +18,7 @@ const RectangleShape = ({
 
   return (
     <g transform={`translate(${x} ${y})`} {...commonProps}>
-      <rect
-        width={width}
-        height={height}
-        stroke={color ?? "black"}
-        fill="transparent"
-        x={0}
-        y={0}
-      />
+      <rect width={width} height={height} stroke={"black"} x={0} y={0} />
       {text && (
         <foreignObject x={0} y={0} width={bounds.width} height={bounds.height}>
           <div
@@ -43,7 +36,7 @@ const RectangleShape = ({
               display: "inline-block",
               position: "relative",
               pointerEvents: "none",
-              color,
+              color: "white",
               fontSize: `${fontSize}px`,
               fontFamily: "Arial",
             }}

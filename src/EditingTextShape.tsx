@@ -90,11 +90,6 @@ export default function EditableText({
           display: "inline-block",
           backgroundColor: "transparent",
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            onTextBlur();
-          }
-        }}
       />
     </foreignObject>
   );
