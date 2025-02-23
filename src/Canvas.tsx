@@ -74,17 +74,6 @@ function rotateShape(shape: Shape, angle: number): Shape {
 }
 export const MAX_ZOOM_STEP = 5;
 
-// const playersColors = [
-//   "rgb(255, 0, 0, 0.5)",
-//   "rgb(0, 255, 0, 0.5)",
-//   "rgb(0, 0, 255, 0.5)",
-//   "rgb(255, 255, 0, 0.5)",
-//   "rgb(128, 0, 128, 0.5)",
-//   "rgb(255, 165, 0, 0.5)",
-// ];
-// const getPlayerColor = (index: number) =>
-//   playersColors[index % playersColors.length];
-
 function intersect(rect1: DOMRect, rect2: DOMRect) {
   if (rect1.right < rect2.left || rect2.right < rect1.left) return false;
 
