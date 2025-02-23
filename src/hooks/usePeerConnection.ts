@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import Peer, { DataConnection } from "peerjs";
-
+interface PeerSyncMessage extends Message {
+  type: "peer-sync";
+  payload: {
+    connectedPeers: string[];
+  };
+}
 interface Message {
   type: string;
   payload: any;
@@ -41,10 +46,9 @@ export const usePeerStore = create<PeerState>((set, get) => ({
       });
     }
   },
-
   connectToPeer: (peerId: string) => {
-    const { peer } = get();
-    if (peer) {
+    const { peer, connections } = get();
+    if (peer && peerId !== peer.id && !connections.has(peerId)) {
       const connection = peer.connect(peerId);
       setupConnection(connection);
     }
@@ -100,23 +104,40 @@ export const usePeerStore = create<PeerState>((set, get) => ({
 }));
 
 function setupConnection(conn: DataConnection) {
-  const { connections, messageCallbacks } = usePeerStore.getState();
+  const { connections, messageCallbacks, peer } = usePeerStore.getState();
 
   conn.on("open", () => {
     connections.set(conn.peer, conn);
     usePeerStore.setState({ connections: new Map(connections) });
-    conn.send({ type: "connected", payload: { peerId: conn.peer } });
+
+    // Envoyer la liste des pairs connectés au nouveau pair
+    const connectedPeers = Array.from(connections.keys()).filter(
+      (id) => id !== conn.peer
+    );
+    conn.send({
+      type: "peer-sync",
+      payload: { connectedPeers },
+    });
   });
 
   conn.on("data", (data: unknown) => {
     if (isValidMessage(data)) {
+      // Gérer la synchronisation des pairs
+      if (data.type === "peer-sync") {
+        const syncMessage = data as PeerSyncMessage;
+        syncMessage.payload.connectedPeers.forEach((peerId) => {
+          if (!connections.has(peerId) && peer?.id !== peerId) {
+            usePeerStore.getState().connectToPeer(peerId);
+          }
+        });
+      }
+
       const callbacks = messageCallbacks[data.type] || [];
       callbacks.forEach((callback) => callback(data, conn.peer));
     } else {
       console.error("Invalid message received:", data);
     }
   });
-
   conn.on("close", () => {
     connections.delete(conn.peer);
     usePeerStore.setState({ connections: new Map(connections) });
@@ -124,7 +145,6 @@ function setupConnection(conn: DataConnection) {
 
   conn.on("error", (error) => usePeerStore.setState({ error }));
 }
-
 // Type guard to check if a message is valid
 function isValidMessage(data: unknown): data is Message {
   if (
