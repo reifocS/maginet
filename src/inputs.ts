@@ -1,6 +1,5 @@
 import React from "react";
 import vec from "./utils/vec";
-import { MAX_ZOOM_STEP } from "./Canvas";
 
 interface PointerInfo {
   target: string;
@@ -17,6 +16,7 @@ function isDarwin(): boolean {
   return /Mac|iPod|iPhone|iPad/.test(window.navigator.platform);
 }
 const DOUBLE_CLICK_DURATION = 250;
+const MAX_ZOOM_STEP = 5;
 function getPoint(
   e: PointerEvent | React.PointerEvent | Touch | React.Touch | WheelEvent
 ): number[] {
