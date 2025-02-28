@@ -1,6 +1,5 @@
 import React from "react";
 import { useLocation, Form } from "react-router-dom";
-import { Camera, Card, Mode, ShapeType } from "./Canvas";
 import useModal from "./hooks/useModal";
 import { usePeerStore } from "./hooks/usePeerConnection";
 import { useRateLimit } from "./hooks/useRateLimit";
@@ -8,6 +7,7 @@ import { useShapeStore } from "./hooks/useShapeStore";
 import { Datum } from "./hooks/useCards";
 import { colors } from "./utils/colors";
 import { getBounds } from "./utils/canvas_utils";
+import { Camera, Mode, Card, ShapeType } from "./types/canvas";
 
 export function SelectionPanel({
   onDrawCard,
@@ -46,6 +46,9 @@ export function SelectionPanel({
   const [peerId, setPeerId] = React.useState("");
   const [modal, showModal] = useModal();
   const selectedShapeIds = useShapeStore((state) => state.selectedShapeIds);
+  const setSelectedShapeIds = useShapeStore(
+    (state) => state.setSelectedShapeIds
+  );
   const shapes = useShapeStore((state) => state.shapes);
   const selectedShapes = shapes.filter((shape) =>
     selectedShapeIds.includes(shape.id)
@@ -244,6 +247,9 @@ export function SelectionPanel({
             )}
           </datalist>
           <input
+            onFocus={() => {
+              setSelectedShapeIds([]);
+            }}
             type="search"
             id="cards"
             name="card_name"
