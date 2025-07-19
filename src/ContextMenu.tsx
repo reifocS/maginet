@@ -17,7 +17,7 @@ interface ContextMenuProps {
   sendCardToFront: () => void;
   sendCardToBack: () => void;
   increaseSrcIndex: () => void;
-  sendBackToDeck: (position: "top" | "bottom") => void;
+  sendBackToDeck: () => void;
 }
 
 export default function ContextMenu({
@@ -42,13 +42,8 @@ export default function ContextMenu({
         <button onClick={onFlip}>Flip</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={() => sendBackToDeck("bottom")}>
-          Send to bottom of Deck
-        </button>
-      </ContextMenuItem>
-      <ContextMenuItem>
-        <button onClick={() => sendBackToDeck("top")}>
-          Send to top of Deck
+        <button onClick={sendBackToDeck}>
+          Remove from Canvas
         </button>
       </ContextMenuItem>
       <ContextMenuItem>

@@ -6,6 +6,8 @@ export interface Point {
 export interface Card {
   id: string;
   src: string[];
+  srcIndex?: number;
+  name?: string;
 }
 
 export interface Camera {

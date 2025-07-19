@@ -111,3 +111,18 @@
   height: 100%;
   object-fit: cover;
 }
+
+/* Hand card hover effects - restored since they weren't the cause */
+.hand-card {
+  transform: translate3d(0, 0, 0) scale(1);
+  box-shadow: none;
+  will-change: transform;
+  contain: layout style paint;
+  backface-visibility: hidden;
+}
+
+.hand-card:hover {
+  transform: translate3d(0, -10px, 0) scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 101 !important;
+}

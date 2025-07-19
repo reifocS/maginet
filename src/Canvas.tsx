@@ -24,6 +24,7 @@ import { SelectionPanel } from "./SelectionPanel";
 import inputs, { normalizeWheel } from "./inputs";
 import { useShapeStore } from "./hooks/useShapeStore";
 import EditingTextShape from "./EditingTextShape";
+import { TldrawCanvas } from "./TldrawCanvas";
 // import ActionLog from "./ActionLog";
 
 import {
@@ -39,6 +40,9 @@ import {
 } from "./types/canvas";
 
 function Canvas() {
+  // Toggle between old Canvas and new TldrawCanvas
+  const [useTldraw, setUseTldraw] = useState(false);
+
   // Shape store state and actions
   const {
     shapes,
@@ -113,10 +117,10 @@ function Canvas() {
 
   // Card state
   const [cardState, dispatch] = useCardReducer({
-    cards: [],
+    hand: [],
     deck: [],
   });
-  const { cards, deck, lastAction } = cardState;
+  const { hand, deck, lastAction } = cardState;
 
   // Gesture handling
   useGesture(
@@ -168,17 +172,14 @@ function Canvas() {
   };
 
   const sendBackToHand = () => {
-    const selectedCards: Card[] = getSelectedImages();
-    dispatch({ type: "SEND_TO_HAND", payload: selectedCards });
+    // Note: In a real implementation, we'd need to track card IDs on canvas shapes
+    // For now, just remove shapes - players can manage cards manually on canvas
     removeSelectedImages();
   };
 
-  const sendBackToDeck = (position: "top" | "bottom") => {
-    const selectedCards: Card[] = getSelectedImages();
-    dispatch({
-      type: "SEND_TO_DECK",
-      payload: { cards: selectedCards, position },
-    });
+  const sendBackToDeck = () => {
+    // Note: In a real implementation, we'd need to track card IDs on canvas shapes
+    // For now, just remove shapes - players can manage cards manually on canvas
     removeSelectedImages();
   };
 
@@ -209,16 +210,6 @@ function Canvas() {
     setSelectedShapeIds([]);
   }
 
-  function getSelectedImages(): Card[] {
-    return shapes
-      .filter((shape) => selectedShapeIds.includes(shape.id))
-      .filter((shape) => shape.type === "image")
-      .map((shape) => ({
-        id: shape.id,
-        src: shape.src as string[],
-        srcIndex: shape.srcIndex,
-      }));
-  }
 
   // Shape actions
   function onFlip() {
@@ -304,9 +295,14 @@ function Canvas() {
     e.preventDefault();
     const cardId = e.dataTransfer.getData("text/plain");
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
-    const card = cardState.cards.find((card) => card.id === cardId);
+    const card = hand.find((card) => card.id === cardId);
     if (!card) return;
-    dispatch({ type: "PLAY_CARD", payload: [cardId] });
+    
+    // Remove card from hand (it's now on canvas)
+    dispatch({ 
+      type: "PLAY_CARD", 
+      payload: card.id
+    });
 
     setShapes((prevShapes) => [
       ...prevShapes,
@@ -507,12 +503,12 @@ function Canvas() {
       payload: {
         peerId: peer?.id,
         data: {
-          cardsInHand: cards.length,
+          cardsInHand: hand.length,
           lastAction,
         },
       },
     });
-  }, [cards, lastAction, sendMessage, peer]);
+  }, [hand, lastAction, sendMessage, peer]);
 
   useEffect(() => {
     const unsubscribeShapes = onMessage("shapes", (message) => {
@@ -546,9 +542,9 @@ function Canvas() {
   }, [onMessage, setShapes]);
 
   useEffect(() => {
-    sendMessage({ type: "cards", payload: cards.length });
+    sendMessage({ type: "cards", payload: hand.length });
     sendMessage({ type: "deck", payload: deck.length });
-  }, [cards, deck, sendMessage]);
+  }, [hand, deck, sendMessage]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -600,8 +596,64 @@ function Canvas() {
   const editingTextShape = shapes.find((shape) => shape.id === editingText?.id);
   const shapesFiltered = shapes.filter((shape) => shape.id !== editingText?.id);
 
+  // Early return for TldrawCanvas
+  if (useTldraw) {
+    return (
+      <div>
+        {/* Render TldrawCanvas with game data passed as props */}
+        <TldrawCanvas 
+          cards={hand}
+          deck={deck}
+          drawCard={drawCard}
+          mulligan={mulligan}
+          onShuffleDeck={onShuffleDeck}
+          playCardFromHand={(cardId: string) => {
+            dispatch({ 
+              type: "PLAY_CARD", 
+              payload: cardId
+            });
+          }}
+          addCardToHand={(cardData: Card) => {
+            dispatch({
+              type: "ADD_CARD_TO_HAND",
+              payload: cardData
+            });
+          }}
+          setHoveredCard={setHoveredCard}
+          setUseTldraw={setUseTldraw}
+        />
+        
+        {/* Zoomed card preview - outside TldrawCanvas to prevent re-renders */}
+        {isCommandPressed && hoveredCard && (
+          <div className="zoomed-card" style={{ pointerEvents: "none" }}>
+            <img src={hoveredCard} alt={`Zoomed ${hoveredCard}`} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Add toggle button to switch to tldraw */}
+      <button 
+        onClick={() => setUseTldraw(true)}
+        style={{
+          position: 'fixed',
+          top: '10px',
+          left: '10px',
+          zIndex: 1000,
+          padding: '8px 16px',
+          backgroundColor: '#e0f2fe',
+          border: '1px solid #0284c7',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          color: '#0284c7'
+        }}
+      >
+        Try New tldraw Canvas
+      </button>
+      
       <ContextMenu
         onEngageDisengageCard={onEngageDisengageCard}
         onFlip={onFlip}
@@ -716,7 +768,7 @@ function Canvas() {
         />
       </div>
 
-      <Hand cards={cards} setHoveredCard={setHoveredCard} />
+      <Hand cards={hand} setHoveredCard={setHoveredCard} />
 
       {/* Zoomed card preview */}
       {isCommandPressed && hoveredCard && (

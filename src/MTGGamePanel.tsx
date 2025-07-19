@@ -1,0 +1,443 @@
+import { useState } from 'react';
+import { useEditor } from 'tldraw';
+import { useLocation, Form } from "react-router-dom";
+import useModal from "./hooks/useModal";
+import { usePeerStore } from "./hooks/usePeerConnection";
+import { useRateLimit } from "./hooks/useRateLimit";
+import useCards, { Datum } from "./hooks/useCards";
+import { MTGCardShape } from './shapes/MTGCardShape';
+import { Card } from './types/canvas';
+
+interface MTGGamePanelProps {
+  deck: Card[];
+  drawCard: () => void;
+  mulligan: () => void;
+  onShuffleDeck: () => void;
+}
+
+export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGamePanelProps) {
+  const editor = useEditor();
+
+  // Peer connection state
+  const connectToPeer = usePeerStore((state) => state.connectToPeer);
+  const sendMessage = usePeerStore((state) => state.sendMessage);
+  const peer = usePeerStore((state) => state.peer);
+  const connections = usePeerStore((state) => state.connections);
+  const [peerId, setPeerId] = useState("");
+
+  // Modal state
+  const [modal, showModal] = useModal();
+
+  // Deck and cards state
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const d = params.get("deck");
+
+  // Use card data hooks for search functionality
+  const { data } = useCards([]);
+  const relatedCards: Datum[] = []; // Simplified for now
+
+  // Rate limiting for Prouton
+  function prouton() {
+    sendMessage({ type: "prouton", payload: "Prouton!" });
+  }
+  const { rateLimitedFn: rateLimitedProuton, canCall: canCallProuton } =
+    useRateLimit(prouton, {
+      maxCalls: 30,
+      timeWindow: 60000,
+    });
+
+  const allCards = data ? [...data, ...(relatedCards ?? [])] : [];
+
+  // Create card on canvas
+  const createCardOnCanvas = (cardData: Datum) => {
+    const viewportCenter = editor.getViewportScreenCenter();
+
+    editor.createShape<MTGCardShape>({
+      type: 'mtg-card',
+      x: viewportCenter.x - 90,
+      y: viewportCenter.y - 125,
+      props: {
+        w: 180,
+        h: 251,
+        src: cardData.image_uris ? [cardData.image_uris.normal] : [],
+        srcIndex: 0,
+        isFlipped: false,
+        cardName: cardData.name,
+      },
+    });
+  };
+
+
+
+  // Get current camera position for centering
+  const centerView = () => {
+    editor.zoomToFit();
+  };
+
+  return (
+    <>
+      {/* Main Game Panel */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '20px',
+        width: '280px',
+        background: 'rgba(255, 255, 255, 0.98)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        zIndex: 1000,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}>
+
+        {/* Multiplayer Section */}
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248, 250, 252, 0.6)',
+          border: '1px solid rgba(0, 0, 0, 0.04)',
+          borderRadius: '10px',
+        }}>
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            margin: '0 0 8px 0',
+            color: '#374151',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>Multiplayer</h3>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <input
+              type="text"
+              onChange={(e) => setPeerId(e.target.value)}
+              value={peerId}
+              placeholder="Enter peer ID"
+              style={{
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                background: 'white',
+                fontSize: '12px',
+              }}
+            />
+            <button
+              onClick={() => connectToPeer(peerId)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '500',
+              }}
+            >
+              Connect
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: '500', color: '#6b7280' }}>Your ID:</span>
+            <input
+              type="text"
+              defaultValue={peer?.id}
+              readOnly
+              style={{
+                flex: 1,
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(0, 0, 0, 0.06)',
+                backgroundColor: '#f8fafc',
+                fontSize: '11px',
+                fontFamily: 'Monaco, Menlo, monospace',
+                color: '#6b7280',
+              }}
+            />
+          </div>
+
+          {connections.size > 0 && (
+            <div style={{
+              padding: '6px 8px',
+              background: 'rgba(34, 197, 94, 0.1)',
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#166534',
+              fontWeight: '500',
+            }}>
+              ✓ Connected to {connections.size} peer{connections.size !== 1 ? 's' : ''}
+            </div>
+          )}
+
+          <button
+            disabled={!canCallProuton}
+            onClick={() => rateLimitedProuton()}
+            style={{
+              marginTop: '8px',
+              padding: '6px 12px',
+              backgroundColor: canCallProuton ? '#f59e0b' : '#9ca3af',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: canCallProuton ? 'pointer' : 'not-allowed',
+              fontSize: '11px',
+              fontWeight: '500',
+            }}
+          >
+            Prouton!
+          </button>
+        </div>
+
+        {/* Canvas Tools Section */}
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248, 250, 252, 0.6)',
+          border: '1px solid rgba(0, 0, 0, 0.04)',
+          borderRadius: '10px',
+        }}>
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            margin: '0 0 8px 0',
+            color: '#374151',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>Canvas Tools</h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              onClick={centerView}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+              }}
+            >
+              Center View
+            </button>
+          </div>
+        </div>
+
+
+        {/* Deck Management Section */}
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248, 250, 252, 0.6)',
+          border: '1px solid rgba(0, 0, 0, 0.04)',
+          borderRadius: '10px',
+        }}>
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            margin: '0 0 8px 0',
+            color: '#374151',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>Deck Management</h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' }}>
+            <button
+              onClick={drawCard}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+              }}
+            >
+              Draw ({deck?.length})
+            </button>
+            <button
+              onClick={mulligan}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+              }}
+            >
+              Mulligan
+            </button>
+            <button
+              onClick={onShuffleDeck}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+              }}
+            >
+              Shuffle
+            </button>
+            <button
+              onClick={() =>
+                showModal("Select deck", (closeModal) => (
+                  <Form
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      padding: '20px',
+                    }}
+                    onSubmit={() => {
+                      closeModal();
+                    }}
+                  >
+                    <textarea
+                      id="deck"
+                      name="deck"
+                      defaultValue={d ?? ""}
+                      placeholder="1 Lightning Bolt&#10;4 Counterspell&#10;..."
+                      style={{
+                        minHeight: '200px',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #ccc',
+                        fontFamily: 'monospace',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '12px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                    >
+                      Submit
+                    </button>
+                  </Form>
+                ))
+              }
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '500',
+              }}
+            >
+              Select Deck
+            </button>
+          </div>
+        </div>
+
+        {/* Card Search */}
+        {allCards && allCards.length > 0 && (
+          <div style={{
+            padding: '12px',
+            background: 'rgba(248, 250, 252, 0.6)',
+            border: '1px solid rgba(0, 0, 0, 0.04)',
+            borderRadius: '10px',
+          }}>
+            <h3 style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              margin: '0 0 8px 0',
+              color: '#374151',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>Card Search</h3>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const target = e.target as typeof e.target & {
+                  card_name: { value: string };
+                };
+                const card = allCards.find(
+                  (c) => c.name.toLowerCase() === target.card_name.value.toLowerCase()
+                );
+                if (card) {
+                  createCardOnCanvas(card);
+                } else {
+                  console.error("Card not found");
+                }
+                target.card_name.value = "";
+              }}
+              style={{ display: 'flex', gap: '8px' }}
+            >
+              <datalist id="cards">
+                {Array.from(new Set([...allCards.map((c) => c.name).sort()])).map(
+                  (card) => (
+                    <option key={card} value={card} />
+                  )
+                )}
+              </datalist>
+              <input
+                type="search"
+                id="cards"
+                name="card_name"
+                list="cards"
+                required
+                placeholder="Search card name..."
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  background: 'white',
+                  fontSize: '12px',
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                }}
+              >
+                Add
+              </button>
+            </form>
+          </div>
+        )}
+
+      </div>
+
+      {/* Modal Display */}
+      {modal}
+    </>
+  );
+}

@@ -224,11 +224,15 @@ export function mapDataToCard(data: Datum): Card {
     return {
       id: generateId(),
       src: [data.image_uris.normal],
+      srcIndex: 0,
+      name: data.name,
     };
   } else if (data.card_faces?.length) {
     return {
       id: generateId(),
       src: data.card_faces.map((face) => face.image_uris.normal),
+      srcIndex: 0,
+      name: data.name,
     };
   }
   throw new Error("Invalid card data");

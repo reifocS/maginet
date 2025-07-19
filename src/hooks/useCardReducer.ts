@@ -4,7 +4,7 @@ import { generateId, shuffle } from "../utils/math";
 import { Datum, mapDataToCard } from "./useCards";
 
 export type CardState = {
-  cards: Card[];
+  hand: Card[];
   deck: Card[];
   lastAction?: string;
 };
@@ -13,70 +13,67 @@ export type CardAction =
   | { type: "INITIALIZE_DECK"; payload: Card[] }
   | { type: "DRAW_CARD" }
   | { type: "MULLIGAN" }
-  | { type: "SEND_TO_HAND"; payload: Card[] }
-  | {
-      type: "SEND_TO_DECK";
-      payload: { cards: Card[]; position: "top" | "bottom" };
-    }
-  | { type: "PLAY_CARD"; payload: string[] }
+  | { type: "PLAY_CARD"; payload: string } // Remove single card from hand
   | { type: "ADD_TO_HAND"; payload: Datum }
+  | { type: "ADD_CARD_TO_HAND"; payload: Card } // Add specific card to hand
   | { type: "SHUFFLE_DECK" };
 
 export function cardReducer(state: CardState, action: CardAction): CardState {
-  state.lastAction = action.type;
+  const newState = { ...state, lastAction: action.type };
+  
   switch (action.type) {
     case "INITIALIZE_DECK":
-      return { ...state, deck: action.payload, cards: [] };
+      return { 
+        ...newState, 
+        deck: action.payload, 
+        hand: []
+      };
+      
     case "DRAW_CARD":
-      if (state.deck.length === 0) return state;
+      if (state.deck.length === 0) return newState;
       {
         const [drawnCard, ...remainingDeck] = state.deck;
         return {
-          ...state,
+          ...newState,
           deck: remainingDeck,
-          cards: [...state.cards, { ...drawnCard, id: generateId() }],
+          hand: [...state.hand, { ...drawnCard, id: generateId() }],
         };
       }
+      
     case "MULLIGAN":
       return {
-        ...state,
-        deck: [...state.deck, ...state.cards],
-        cards: [],
+        ...newState,
+        deck: [...state.deck, ...state.hand],
+        hand: [],
       };
-    case "SEND_TO_HAND":
-      return {
-        ...state,
-        cards: [...state.cards, ...action.payload],
-      };
-    case "SEND_TO_DECK":
-      if (action.payload.position === "top") {
-        return {
-          ...state,
-          deck: [...action.payload.cards, ...state.deck],
-        };
-      }
-      return {
-        ...state,
-        deck: [...state.deck, ...action.payload.cards],
-      };
+      
     case "PLAY_CARD":
       return {
-        ...state,
-        cards: state.cards.filter((card) => !action.payload.includes(card.id)),
+        ...newState,
+        hand: state.hand.filter((card) => card.id !== action.payload),
       };
+      
     case "SHUFFLE_DECK":
       return {
-        ...state,
+        ...newState,
         deck: shuffle(state.deck),
       };
+      
     case "ADD_TO_HAND":
       return {
-        ...state,
-        cards: [...state.cards, mapDataToCard(action.payload)],
+        ...newState,
+        hand: [...state.hand, mapDataToCard(action.payload)],
         deck: removeFirst(state.deck, mapDataToCard(action.payload)),
       };
+      
+    case "ADD_CARD_TO_HAND":
+      return {
+        ...newState,
+        hand: [...state.hand, action.payload],
+      };
+      
     default:
-      return state;
+      return newState;
   }
 }
 
