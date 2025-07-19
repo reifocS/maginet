@@ -91,7 +91,7 @@ export function SelectionPanel({
             value={peerId}
             placeholder="Enter peer ID"
           />
-          <button onClick={() => connectToPeer(peerId)}>Connect</button>
+          <button className="primary" onClick={() => connectToPeer(peerId)}>Connect</button>
         </div>
 
         <div className="peer-id-display">
@@ -100,8 +100,8 @@ export function SelectionPanel({
         </div>
 
         {connections.size > 0 && (
-          <div style={{ marginTop: "8px", fontSize: "13px" }}>
-            Connected to {connections.size} peer
+          <div className="peer-connection-status">
+            ✓ Connected to {connections.size} peer
             {connections.size !== 1 ? "s" : ""}
           </div>
         )}
@@ -129,7 +129,10 @@ export function SelectionPanel({
               checked={mode === "select"}
               onChange={() => setMode("select")}
             />
-            <label htmlFor="select">Select</label>
+            <label htmlFor="select">
+              <span className="tool-icon">↖</span>
+              <span className="tool-label">Select</span>
+            </label>
           </div>
           <div className="shape-type-option">
             <input
@@ -143,7 +146,10 @@ export function SelectionPanel({
                 setShapeType("text");
               }}
             />
-            <label htmlFor="create">Text</label>
+            <label htmlFor="create">
+              <span className="tool-icon">T</span>
+              <span className="tool-label">Text</span>
+            </label>
           </div>
           <div className="shape-type-option">
             <input
@@ -156,7 +162,10 @@ export function SelectionPanel({
                 setShapeType("token");
               }}
             />
-            <label htmlFor="add">Token</label>
+            <label htmlFor="add">
+              <span className="tool-icon">●</span>
+              <span className="tool-label">Token</span>
+            </label>
           </div>
           {/* <div className="shape-type-option">
             <input
@@ -169,7 +178,10 @@ export function SelectionPanel({
                 setShapeType("rectangle");
               }}
             />
-            <label htmlFor="rectangle">Rectangle</label>
+            <label htmlFor="rectangle">
+              <span className="tool-icon">▢</span>
+              <span className="tool-label">Rect</span>
+            </label>
           </div> */}
         </div>
       </div>
@@ -178,8 +190,8 @@ export function SelectionPanel({
       <div className="selection-panel-section">
         <h3>Deck Management</h3>
         <div className="selection-panel-button-group">
-          <button onClick={onDrawCard}>Draw ({deck?.length})</button>
-          <button onClick={onMulligan}>Mulligan</button>
+          <button className="primary" onClick={onDrawCard}>Draw ({deck?.length})</button>
+          <button className="danger" onClick={onMulligan}>Mulligan</button>
           <button onClick={onShuffleDeck}>Shuffle</button>
           <button
             onClick={() =>
@@ -190,7 +202,9 @@ export function SelectionPanel({
                     closeModal();
                   }}
                 >
-                  <textarea id="deck" name="deck" defaultValue={d ?? ""} />
+                  <textarea id="deck" name="deck" defaultValue={d ?? ""} placeholder={`1 Legion Angel
+3 Wedding Announcement
+...`} />
                   <button className="modal-button" type="submit">
                     Submit
                   </button>
@@ -246,7 +260,7 @@ export function SelectionPanel({
               required
               placeholder="Search card name..."
             />
-            <button title="find in deck" type="submit">
+            <button className="success" title="find in deck" type="submit">
               Add
             </button>
           </form>
@@ -255,38 +269,41 @@ export function SelectionPanel({
 
       {/* Properties Section - only display when a shape is selected */}
       {selectedShapes.length > 0 && canEditFontSize && (
-        <div className="font-size-selector">
-          <label>Font Size:</label>
-          <select
-            value={selectedShapes[0]?.fontSize}
-            onChange={(e) => {
-              setShapes((prevShapes) =>
-                prevShapes.map((shape) => {
-                  const bounds = getBounds(
-                    shape.text ?? "",
-                    shape.point[0],
-                    shape.point[1],
-                    parseInt(e.target.value)
-                  );
+        <div className="selection-panel-section">
+          <h3>Text Properties</h3>
+          <div className="font-size-selector">
+            <label>Font Size:</label>
+            <select
+              value={selectedShapes[0]?.fontSize}
+              onChange={(e) => {
+                setShapes((prevShapes) =>
+                  prevShapes.map((shape) => {
+                    const bounds = getBounds(
+                      shape.text ?? "",
+                      shape.point[0],
+                      shape.point[1],
+                      parseInt(e.target.value)
+                    );
 
-                  return selectedShapeIds.includes(shape.id)
-                    ? {
-                        ...shape,
-                        fontSize: parseInt(e.target.value),
-                        size: [bounds.width, bounds.height],
-                      }
-                    : shape;
-                })
-              );
-            }}
-          >
-            <option value={12}>12</option>
-            <option value={16}>16</option>
-            <option value={24}>24</option>
-            <option value={32}>32</option>
-            <option value={48}>48</option>
-            <option value={64}>64</option>
-          </select>
+                    return selectedShapeIds.includes(shape.id)
+                      ? {
+                          ...shape,
+                          fontSize: parseInt(e.target.value),
+                          size: [bounds.width, bounds.height],
+                        }
+                      : shape;
+                  })
+                );
+              }}
+            >
+              <option value={12}>12</option>
+              <option value={16}>16</option>
+              <option value={24}>24</option>
+              <option value={32}>32</option>
+              <option value={48}>48</option>
+              <option value={64}>64</option>
+            </select>
+          </div>
         </div>
       )}
       {/* Canvas Controls */}
