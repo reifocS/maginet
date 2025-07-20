@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useEditor } from 'tldraw';
+import { useEditor, AssetRecordType } from 'tldraw';
 import { useLocation, Form } from "react-router-dom";
+import toast from "react-hot-toast";
 import useModal from "./hooks/useModal";
 import { usePeerStore } from "./hooks/usePeerConnection";
 import { useRateLimit } from "./hooks/useRateLimit";
 import useCards, { Datum } from "./hooks/useCards";
-import { MTGCardShape } from './shapes/MTGCardShape';
 import { Card } from './types/canvas';
 
 interface MTGGamePanelProps {
@@ -13,9 +13,11 @@ interface MTGGamePanelProps {
   drawCard: () => void;
   mulligan: () => void;
   onShuffleDeck: () => void;
+  roomId: string;
+  onRoomIdChange: (newRoomId: string) => void;
 }
 
-export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGamePanelProps) {
+export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
   // Peer connection state
@@ -24,6 +26,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
   const peer = usePeerStore((state) => state.peer);
   const connections = usePeerStore((state) => state.connections);
   const [peerId, setPeerId] = useState("");
+  const [customRoomId, setCustomRoomId] = useState("");
 
   // Modal state
   const [modal, showModal] = useModal();
@@ -52,23 +55,62 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
 
   const allCards = data ? [...data, ...(relatedCards ?? [])] : [];
 
-  // Create card on canvas
+  // Create card on canvas using built-in image shape
   const createCardOnCanvas = (cardData: Datum) => {
     const viewportCenter = editor.getViewportScreenCenter();
+    const imageUrl = cardData.image_uris?.normal;
 
-    editor.createShape<MTGCardShape>({
-      type: 'mtg-card',
-      x: viewportCenter.x - 90,
-      y: viewportCenter.y - 125,
-      props: {
-        w: 180,
-        h: 251,
-        src: cardData.image_uris ? [cardData.image_uris.normal] : [],
-        srcIndex: 0,
-        isFlipped: false,
-        cardName: cardData.name,
-      },
-    });
+    console.log('🎯 Creating card from search:', { cardData, imageUrl });
+
+    if (imageUrl) {
+      try {
+        // Create asset ID first
+        const assetId = AssetRecordType.createId();
+        
+        // Create the asset
+        editor.createAssets([
+          {
+            id: assetId,
+            type: 'image',
+            typeName: 'asset',
+            props: {
+              name: cardData.name,
+              src: imageUrl,
+              w: 180,
+              h: 251,
+              mimeType: 'image/jpeg',
+              isAnimated: false,
+            },
+            meta: {},
+          },
+        ]);
+
+        // Create the image shape with MTG card metadata
+        editor.createShape({
+          type: 'image',
+          x: viewportCenter.x - 90,
+          y: viewportCenter.y - 125,
+          props: {
+            assetId: assetId,
+            w: 180,
+            h: 251,
+          },
+          meta: {
+            isMTGCard: true,
+            cardName: cardData.name,
+            cardSrc: [imageUrl],
+            cardSrcIndex: 0,
+            originalCardId: `search-${cardData.id}`,
+          },
+        });
+
+        console.log('✅ Search card shape created with asset:', assetId);
+      } catch (error) {
+        console.error('❌ Failed to create search card shape:', error);
+      }
+    } else {
+      console.error('❌ No image URL found for card data:', cardData);
+    }
   };
 
 
@@ -201,6 +243,128 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
           >
             Prouton!
           </button>
+        </div>
+
+        {/* Room Sharing Section */}
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248, 250, 252, 0.6)',
+          border: '1px solid rgba(0, 0, 0, 0.04)',
+          borderRadius: '10px',
+        }}>
+          <h3 style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            margin: '0 0 8px 0',
+            color: '#374151',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>Room Sharing</h3>
+
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ 
+              fontSize: '11px', 
+              fontWeight: '500', 
+              color: '#6b7280',
+              display: 'block',
+              marginBottom: '4px'
+            }}>
+              Share this room ID for multiplayer:
+            </label>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={roomId}
+                readOnly
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  backgroundColor: '#f8fafc',
+                  fontSize: '10px',
+                  fontFamily: 'Monaco, Menlo, monospace',
+                  color: '#6b7280',
+                }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(roomId);
+                  toast.success("Room ID copied to clipboard!");
+                }}
+                style={{
+                  ...buttonStyles.base,
+                  ...buttonStyles.primary,
+                  padding: '6px 8px',
+                  fontSize: '10px',
+                }}
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ 
+              fontSize: '11px', 
+              fontWeight: '500', 
+              color: '#6b7280',
+              display: 'block',
+              marginBottom: '4px'
+            }}>
+              Join a different room:
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={customRoomId}
+                onChange={(e) => setCustomRoomId(e.target.value)}
+                placeholder="Enter room ID..."
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  background: 'white',
+                  fontSize: '10px',
+                  fontFamily: 'Monaco, Menlo, monospace',
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (customRoomId.trim()) {
+                    onRoomIdChange(customRoomId.trim());
+                    toast.success(`Joined room: ${customRoomId.trim()}`);
+                    setCustomRoomId("");
+                  }
+                }}
+                disabled={!customRoomId.trim()}
+                style={{
+                  ...buttonStyles.base,
+                  ...buttonStyles.success,
+                  padding: '6px 8px',
+                  fontSize: '10px',
+                  opacity: customRoomId.trim() ? 1 : 0.5,
+                  cursor: customRoomId.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Join
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            padding: '6px 8px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: '4px',
+            fontSize: '10px',
+            color: '#1e40af',
+            fontWeight: '400',
+            lineHeight: '1.4',
+          }}>
+            💡 Share your room ID or join someone else's room for real-time collaboration!
+          </div>
         </div>
 
         {/* Canvas Tools Section */}

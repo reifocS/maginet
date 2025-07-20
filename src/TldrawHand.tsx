@@ -1,7 +1,6 @@
-import { useEditor } from 'tldraw';
+import { useEditor, AssetRecordType } from 'tldraw';
 import React from 'react';
 import { Card } from './types/canvas';
-import { MTGCardShape } from './shapes/MTGCardShape';
 import './Canvas.css';
 
 interface TldrawHandProps {
@@ -41,20 +40,59 @@ export function TldrawHand({ cards, playCardFromHand }: TldrawHandProps) {
 
   const playCardToCanvas = (card: Card) => {
     const viewportCenter = editor.getViewportScreenCenter();
+    const cardImageUrl = card.src?.[card.srcIndex || 0];
 
-    editor.createShape<MTGCardShape>({
-      type: 'mtg-card',
-      x: viewportCenter.x - 90,
-      y: viewportCenter.y - 125,
-      props: {
-        w: 180,
-        h: 251,
-        src: card.src || [],
-        srcIndex: card.srcIndex || 0,
-        isFlipped: false,
-        cardName: card.name || 'Magic Card',
-      },
-    });
+    console.log('🎯 Playing card to canvas:', { card, cardImageUrl });
+
+    if (cardImageUrl) {
+      try {
+        // Create asset ID first
+        const assetId = AssetRecordType.createId();
+        
+        // Create the asset
+        editor.createAssets([
+          {
+            id: assetId,
+            type: 'image',
+            typeName: 'asset',
+            props: {
+              name: card.name || 'Magic Card',
+              src: cardImageUrl,
+              w: 180,
+              h: 251,
+              mimeType: 'image/jpeg',
+              isAnimated: false,
+            },
+            meta: {},
+          },
+        ]);
+
+        // Create the image shape with MTG card metadata
+        editor.createShape({
+          type: 'image',
+          x: viewportCenter.x - 90,
+          y: viewportCenter.y - 125,
+          props: {
+            assetId: assetId,
+            w: 180,
+            h: 251,
+          },
+          meta: {
+            isMTGCard: true,
+            cardName: card.name,
+            cardSrc: card.src,
+            cardSrcIndex: card.srcIndex || 0,
+            originalCardId: card.id,
+          },
+        });
+
+        console.log('✅ Card shape created with asset:', assetId);
+      } catch (error) {
+        console.error('❌ Failed to create card shape:', error);
+      }
+    } else {
+      console.error('❌ No card image URL found for card:', card);
+    }
 
     // Move card from hand to battlefield
     playCardFromHand?.(card.id);

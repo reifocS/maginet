@@ -1,16 +1,16 @@
 import React from 'react';
 import {
   Tldraw,
-  createTLStore,
-  defaultShapeUtils,
   useEditor,
+  AssetRecordType,
 } from 'tldraw';
+import { useSyncDemo } from '@tldraw/sync';
 import 'tldraw/tldraw.css';
-import { MTGCardShapeUtil, MTGCardShape } from './shapes/MTGCardShape';
 import { MTGGamePanel } from './MTGGamePanel';
 import { TldrawHand } from './TldrawHand';
 import { MTGContextMenu } from './MTGContextMenu';
 import { Card } from './types/canvas';
+import { usePeerStore } from './hooks/usePeerConnection';
 
 interface TldrawCanvasProps {
   cards: Card[]; // hand
@@ -24,13 +24,6 @@ interface TldrawCanvasProps {
   setUseTldraw: (useTldraw: boolean) => void;
 }
 
-// Create custom shape utilities
-const customShapeUtils = [
-  MTGCardShapeUtil,
-];
-
-// Combine default shapes with custom MTG shapes
-const shapeUtils = [...defaultShapeUtils, ...customShapeUtils];
 
 // Component to handle card preview using tldraw's editor events
 function TldrawCardPreview() {
@@ -73,10 +66,9 @@ function TldrawCardPreview() {
       const pagePoint = editor.screenToPage(screenPoint);
       const shapeAtPoint = editor.getShapeAtPoint(pagePoint);
 
-      if (shapeAtPoint && shapeAtPoint.type === 'mtg-card') {
-        const cardProps = shapeAtPoint.props as MTGCardShape['props'];
-        const cardSrc = cardProps.src[cardProps.srcIndex] || '';
-        console.log('🎯 Found MTG card under pointer:', cardSrc);
+      if (shapeAtPoint && shapeAtPoint.type === 'image') {
+        const cardSrc = (shapeAtPoint.props as any).url || '';
+        console.log('🎯 Found card image under pointer:', cardSrc);
 
         if (cardSrc) {
           const preview = document.getElementById('simple-card-preview');
@@ -144,20 +136,59 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
           // Convert to page coordinates
           const pagePoint = editor.screenToPage(screenPoint);
 
-          // Create the card shape at the drop position
-          editor.createShape<MTGCardShape>({
-            type: 'mtg-card',
-            x: pagePoint.x - 90,
-            y: pagePoint.y - 125,
-            props: {
-              w: 180,
-              h: 251,
-              src: card.src || [],
-              srcIndex: card.srcIndex || 0,
-              isFlipped: false,
-              cardName: card.name || 'Magic Card',
-            },
-          });
+          // Create the card using built-in image shape
+          const cardImageUrl = card.src?.[card.srcIndex || 0];
+          console.log('🎯 Dropping card to canvas:', { card, cardImageUrl });
+          
+          if (cardImageUrl) {
+            try {
+              // Create asset ID first
+              const assetId = AssetRecordType.createId();
+              
+              // Create the asset
+              editor.createAssets([
+                {
+                  id: assetId,
+                  type: 'image',
+                  typeName: 'asset',
+                  props: {
+                    name: card.name || 'Magic Card',
+                    src: cardImageUrl,
+                    w: 180,
+                    h: 251,
+                    mimeType: 'image/jpeg',
+                    isAnimated: false,
+                  },
+                  meta: {},
+                },
+              ]);
+
+              // Create the image shape with MTG card metadata
+              editor.createShape({
+                type: 'image',
+                x: pagePoint.x - 90,
+                y: pagePoint.y - 125,
+                props: {
+                  assetId: assetId,
+                  w: 180,
+                  h: 251,
+                },
+                meta: {
+                  isMTGCard: true,
+                  cardName: card.name,
+                  cardSrc: card.src,
+                  cardSrcIndex: card.srcIndex || 0,
+                  originalCardId: card.id,
+                },
+              });
+
+              console.log('✅ Dropped card shape created with asset:', assetId);
+            } catch (error) {
+              console.error('❌ Failed to create dropped card shape:', error);
+            }
+          } else {
+            console.error('❌ No card image URL found for dropped card:', card);
+          }
 
           // Remove card from hand
           playCardFromHand(card.id);
@@ -208,19 +239,35 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
   setUseTldraw
 }: TldrawCanvasProps): JSX.Element {
 
-  // Create store with custom shapes
-  const store = React.useMemo(() => {
-    return createTLStore({
-      shapeUtils,
-    });
-  }, []);
+  // Get peer connection info for room ID
+  const { peer } = usePeerStore();
+  
+  // Room ID state - can be changed by user
+  const [roomId, setRoomId] = React.useState(() => {
+    // Generate initial room ID based on peer connection
+    if (peer?.id) {
+      return `mtg-game-${peer.id}`;
+    }
+    return 'mtg-game-default';
+  });
+
+  // Update room ID when peer changes (only if still using default)
+  React.useEffect(() => {
+    if (peer?.id && roomId === 'mtg-game-default') {
+      setRoomId(`mtg-game-${peer.id}`);
+    }
+  }, [peer?.id, roomId]);
+
+  // Use Tldraw's built-in sync for multiplayer - keep it simple
+  const store = useSyncDemo({
+    roomId,
+  });
 
 
   return (
     <div style={{ position: 'absolute', inset: 0, top: 0, left: 0, right: 0, bottom: 0 }}>
       <Tldraw
         store={store}
-        shapeUtils={shapeUtils}
         components={{
           ContextMenu: () => <MTGContextMenu addCardToHand={addCardToHand} />,
         }}
@@ -232,6 +279,8 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
           drawCard={drawCard}
           mulligan={mulligan}
           onShuffleDeck={onShuffleDeck}
+          roomId={roomId}
+          onRoomIdChange={setRoomId}
         />
 
         <TldrawHand

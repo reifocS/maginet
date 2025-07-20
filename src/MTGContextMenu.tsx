@@ -4,22 +4,28 @@ import {
   TldrawUiMenuItem,
   useEditor,
   useValue,
+  TLImageShape,
+  AssetRecordType,
 } from 'tldraw';
-import { MTGCardShape } from './shapes/MTGCardShape';
 import { Card } from './types/canvas';
 
 interface MTGContextMenuProps {
   addCardToHand?: (cardData: Card) => void;
+  // TODO: Add deck-related functions if needed
+  // sendToTopOfDeck?: (cardData: Card) => void;
+  // sendToBottomOfDeck?: (cardData: Card) => void;
 }
 
 export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
   const editor = useEditor();
   const selectedShapeIds = useValue('selectedShapeIds', () => editor.getSelectedShapeIds(), [editor]);
   
-  // Get selected MTG cards
+  // Get selected MTG cards (now image shapes with MTG metadata)
   const selectedMTGCards = selectedShapeIds
     .map(id => editor.getShape(id))
-    .filter((shape): shape is MTGCardShape => shape?.type === 'mtg-card');
+    .filter((shape): shape is TLImageShape => 
+      shape?.type === 'image' && shape.meta?.isMTGCard === true
+    );
 
   const hasMTGCards = selectedMTGCards.length > 0;
   
@@ -30,7 +36,7 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
     // Process each card individually to avoid stale state
     for (const cardId of selectedIds) {
       // Get fresh card state from editor
-      const card = editor.getShape(cardId) as MTGCardShape;
+      const card = editor.getShape(cardId) as TLImageShape;
       if (!card) continue;
       
       const currentRotation = card.rotation;
@@ -54,23 +60,50 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
   };
 
   const transformCard = () => {
-    const updates = selectedMTGCards
-      .filter(card => card.props.src.length > 1)
-      .map(card => {
-        const nextIndex = (card.props.srcIndex + 1) % card.props.src.length;
-        return {
+    // Transform multi-faced cards by updating assets and shape metadata
+    selectedMTGCards.forEach(card => {
+      const cardSrc = card.meta?.cardSrc as string[] || [];
+      const currentIndex = (card.meta?.cardSrcIndex as number) || 0;
+      
+      if (cardSrc.length > 1) {
+        const nextIndex = (currentIndex + 1) % cardSrc.length;
+        const nextImageUrl = cardSrc[nextIndex];
+        
+        // Create new asset for the new face
+        const assetId = AssetRecordType.createId();
+        
+        editor.createAssets([
+          {
+            id: assetId,
+            type: 'image',
+            typeName: 'asset',
+            props: {
+              name: card.meta?.cardName as string || 'Magic Card',
+              src: nextImageUrl,
+              w: 180,
+              h: 251,
+              mimeType: 'image/jpeg',
+              isAnimated: false,
+            },
+            meta: {},
+          },
+        ]);
+
+        // Update the shape with new asset and metadata
+        editor.updateShape({
           id: card.id,
-          type: 'mtg-card' as const,
+          type: 'image',
           props: {
             ...card.props,
-            srcIndex: nextIndex,
+            assetId: assetId,
           },
-        };
-      });
-    
-    if (updates.length > 0) {
-      editor.updateShapes(updates);
-    }
+          meta: {
+            ...card.meta,
+            cardSrcIndex: nextIndex,
+          },
+        });
+      }
+    });
   };
 
   const copyCard = () => {
@@ -78,15 +111,21 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
     editor.duplicateShapes(selectedIds, { x: 20, y: 20 });
   };
 
+  const flipCard = () => {
+    // Flip card horizontally using tldraw's built-in method
+    const selectedIds = selectedMTGCards.map(card => card.id);
+    editor.flipShapes(selectedIds, 'horizontal');
+  };
+
   const sendToHand = () => {
     if (addCardToHand) {
       selectedMTGCards.forEach(card => {
-        // Create card data structure for hand
+        // Create card data structure for hand using metadata
         const cardData = {
           id: Math.random().toString(36).substr(2, 9), // Generate new ID for hand
-          name: card.props.cardName || 'Magic Card',
-          src: card.props.src,
-          srcIndex: card.props.srcIndex || 0,
+          name: (card.meta?.cardName as string) || 'Magic Card',
+          src: (card.meta?.cardSrc as string[]) || [],
+          srcIndex: (card.meta?.cardSrcIndex as number) || 0,
         };
         addCardToHand(cardData);
       });
@@ -112,7 +151,10 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
     editor.sendToBack(selectedIds);
   };
 
-  const hasMultiFaced = selectedMTGCards.some(card => card.props.src.length > 1);
+  const hasMultiFaced = selectedMTGCards.some(card => {
+    const cardSrc = card.meta?.cardSrc as string[] || [];
+    return cardSrc.length > 1;
+  });
 
   return (
     <DefaultContextMenu>
@@ -142,6 +184,12 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
               label="Copy"
               icon="copy"
               onSelect={copyCard}
+            />
+            <TldrawUiMenuItem
+              id="flip"
+              label="Flip"
+              icon="flip-horizontal"
+              onSelect={flipCard}
             />
             {hasMultiFaced && (
               <TldrawUiMenuItem

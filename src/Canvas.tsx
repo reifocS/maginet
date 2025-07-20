@@ -463,6 +463,13 @@ function Canvas() {
       const initialDeck: Card[] = mapDataToCards(data);
       dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
       toast(`Deck initialized with ${initialDeck.length} cards`);
+      
+      // Draw a few cards for testing
+      setTimeout(() => {
+        dispatch({ type: "DRAW_CARD" });
+        dispatch({ type: "DRAW_CARD" });
+        dispatch({ type: "DRAW_CARD" });
+      }, 500);
     }
   }, [data, dispatch]);
 

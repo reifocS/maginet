@@ -221,6 +221,7 @@ export function mapDataToCards(data?: Datum[]): Card[] {
 
 export function mapDataToCard(data: Datum): Card {
   if (data.image_uris?.normal) {
+    console.log('🎯 Creating card with image:', data.name, data.image_uris.normal);
     return {
       id: generateId(),
       src: [data.image_uris.normal],
@@ -228,12 +229,15 @@ export function mapDataToCard(data: Datum): Card {
       name: data.name,
     };
   } else if (data.card_faces?.length) {
+    const faceImages = data.card_faces.map((face) => face.image_uris.normal);
+    console.log('🎯 Creating multi-face card:', data.name, faceImages);
     return {
       id: generateId(),
-      src: data.card_faces.map((face) => face.image_uris.normal),
+      src: faceImages,
       srcIndex: 0,
       name: data.name,
     };
   }
+  console.error('❌ Invalid card data for:', data.name, data);
   throw new Error("Invalid card data");
 }
