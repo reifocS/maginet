@@ -1,4 +1,4 @@
-import { 
+import {
   DefaultContextMenu,
   TldrawUiMenuGroup,
   TldrawUiMenuItem,
@@ -18,42 +18,42 @@ interface MTGContextMenuProps {
 export function MTGContextMenu({ addCardToHand, sendToTopOfDeck, sendToBottomOfDeck }: MTGContextMenuProps = {}) {
   const editor = useEditor();
   const selectedShapeIds = useValue('selectedShapeIds', () => editor.getSelectedShapeIds(), [editor]);
-  
+
   // Get selected MTG cards (now image shapes with MTG metadata)
   const selectedMTGCards = selectedShapeIds
     .map(id => editor.getShape(id))
-    .filter((shape): shape is TLImageShape => 
+    .filter((shape): shape is TLImageShape =>
       shape?.type === 'image' && shape.meta?.isMTGCard === true
     );
 
   const hasMTGCards = selectedMTGCards.length > 0;
-  
+
   // MTG card actions - Tap (toggle between 0° and 90°)
   const tapCard = () => {
     const selectedIds = selectedMTGCards.map(card => card.id);
-    
+
     // Process each card individually to avoid stale state
     for (const cardId of selectedIds) {
       // Get fresh card state from editor
       const card = editor.getShape(cardId) as TLImageShape;
       if (!card) continue;
-      
+
       const currentRotation = card.rotation;
       console.log('Current rotation:', currentRotation, 'radians =', (currentRotation * 180 / Math.PI), 'degrees');
-      
+
       // Normalize rotation to [0, 2π] range and check if card is tapped
       const normalizedRotation = ((currentRotation % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
       const isTapped = Math.abs(normalizedRotation - Math.PI / 2) < 0.3 || Math.abs(normalizedRotation - (3 * Math.PI / 2)) < 0.3;
       const targetRotation = isTapped ? 0 : Math.PI / 2; // Toggle: tapped → untapped, untapped → tapped
       const deltaRotation = targetRotation - currentRotation;
-      
+
       console.log('Is tapped:', isTapped, 'Target rotation:', targetRotation, 'radians =', (targetRotation * 180 / Math.PI), 'degrees');
       console.log('Delta rotation:', deltaRotation, 'radians =', (deltaRotation * 180 / Math.PI), 'degrees');
-      
+
       // Use rotateShapesBy for proper center rotation and state updates
       editor.rotateShapesBy([cardId], deltaRotation);
     }
-    
+
     // Maintain selection after rotation
     editor.setSelectedShapes(selectedIds);
   };
@@ -63,14 +63,14 @@ export function MTGContextMenu({ addCardToHand, sendToTopOfDeck, sendToBottomOfD
     selectedMTGCards.forEach(card => {
       const cardSrc = card.meta?.cardSrc as string[] || [];
       const currentIndex = (card.meta?.cardSrcIndex as number) || 0;
-      
+
       if (cardSrc.length > 1) {
         const nextIndex = (currentIndex + 1) % cardSrc.length;
         const nextImageUrl = cardSrc[nextIndex];
-        
+
         // Create new asset for the new face
         const assetId = AssetRecordType.createId();
-        
+
         editor.createAssets([
           {
             id: assetId,
@@ -110,11 +110,6 @@ export function MTGContextMenu({ addCardToHand, sendToTopOfDeck, sendToBottomOfD
     editor.duplicateShapes(selectedIds, { x: 20, y: 20 });
   };
 
-  const flipCard = () => {
-    // Flip card horizontally using tldraw's built-in method
-    const selectedIds = selectedMTGCards.map(card => card.id);
-    editor.flipShapes(selectedIds, 'horizontal');
-  };
 
   const sendToHand = () => {
     if (addCardToHand) {
@@ -231,12 +226,6 @@ export function MTGContextMenu({ addCardToHand, sendToTopOfDeck, sendToBottomOfD
               label="Copy"
               icon="copy"
               onSelect={copyCard}
-            />
-            <TldrawUiMenuItem
-              id="flip"
-              label="Flip"
-              icon="flip-horizontal"
-              onSelect={flipCard}
             />
             {hasMultiFaced && (
               <TldrawUiMenuItem
