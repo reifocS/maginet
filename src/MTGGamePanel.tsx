@@ -519,6 +519,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                       !deckSearchTerm ||
                       (card.name && card.name.toLowerCase().includes(deckSearchTerm.toLowerCase()))
                     )
+                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                     .map((card, index) => (
                       <div
                         key={`${card.id}-${index}`}
@@ -547,7 +548,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                             objectFit: 'cover',
                             borderRadius: '3px',
                             marginRight: '8px',
-                            border: '1px solid rgba(0, 0, 0, 0.1)',
+                            border: card.isRelatedCard ? '2px solid #8b5cf6' : '1px solid rgba(0, 0, 0, 0.1)',
                           }}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -563,16 +564,25 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                           whiteSpace: 'nowrap',
                         }}>
                           {card.name || 'Unknown Card'}
+                          {card.isRelatedCard && card.relatedTo && (
+                            <div style={{
+                              fontSize: '9px',
+                              color: '#8b5cf6',
+                              fontStyle: 'italic',
+                            }}>
+                              → {card.relatedTo}
+                            </div>
+                          )}
                         </div>
                         <div style={{
                           fontSize: '9px',
-                          color: '#6b7280',
-                          backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                          color: card.isRelatedCard ? '#8b5cf6' : '#6b7280',
+                          backgroundColor: card.isRelatedCard ? 'rgba(139, 92, 246, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                           padding: '2px 4px',
                           borderRadius: '3px',
                           marginLeft: '6px',
                         }}>
-                          Play
+                          {card.isRelatedCard ? 'Related' : 'Play'}
                         </div>
                       </div>
                     ))

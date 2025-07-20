@@ -3,4 +3,6 @@ export interface Card {
   src: string[];
   srcIndex?: number;
   name?: string;
+  isRelatedCard?: boolean;
+  relatedTo?: string;
 }

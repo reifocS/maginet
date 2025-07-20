@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import useCards, {
   mapDataToCards,
   processRawText,
+  fetchRelatedCards,
 } from "./hooks/useCards";
 import { useCardReducer } from "./hooks/useCardReducer";
 import { DEFAULT_DECK } from "./DEFAULT_DECK";
@@ -32,16 +33,23 @@ function Canvas() {
   // Initialize deck when data loads
   useEffect(() => {
     if (data) {
-      const initialDeck: Card[] = mapDataToCards(data);
-      dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
-      toast(`Deck initialized with ${initialDeck.length} cards`);
+      const initializeDeck = async () => {
+        const mainCards: Card[] = mapDataToCards(data);
+        const relatedCards: Card[] = await fetchRelatedCards(data);
+        const allCards = [...mainCards, ...relatedCards];
+        
+        dispatch({ type: "INITIALIZE_DECK", payload: allCards });
+        toast(`Deck initialized with ${mainCards.length} main cards and ${relatedCards.length} related cards`);
 
-      // Draw a few cards for testing
-      setTimeout(() => {
-        dispatch({ type: "DRAW_CARD" });
-        dispatch({ type: "DRAW_CARD" });
-        dispatch({ type: "DRAW_CARD" });
-      }, 500);
+        // Draw a few cards for testing
+        setTimeout(() => {
+          dispatch({ type: "DRAW_CARD" });
+          dispatch({ type: "DRAW_CARD" });
+          dispatch({ type: "DRAW_CARD" });
+        }, 500);
+      };
+      
+      initializeDeck();
     }
   }, [data, dispatch]);
 
