@@ -215,13 +215,30 @@ export function processRawText(fromArena: string) {
     return [];
   });
 }
-export function mapDataToCards(data?: Datum[]): Card[] {
+export function mapDataToCards(data?: Datum[], originalNames?: string[]): Card[] {
   if (!data) return [];
   
+  // If we have the original card names with quantities, use them
+  if (originalNames) {
+    const allCards: Card[] = [];
+    
+    for (const cardName of originalNames) {
+      // Find the matching card data from the API response
+      const cardData = data.find(d => d.name.toLowerCase() === cardName.toLowerCase());
+      if (cardData) {
+        allCards.push(mapDataToCard(cardData));
+      } else {
+        console.warn(`Card not found in API response: ${cardName}`);
+      }
+    }
+    
+    return allCards;
+  }
+  
+  // Fallback to the old behavior if no original names provided
   const allCards: Card[] = [];
   const processedIds = new Set<string>();
   
-  // Process main cards
   for (const datum of data) {
     if (!processedIds.has(datum.id)) {
       allCards.push(mapDataToCard(datum));

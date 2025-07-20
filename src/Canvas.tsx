@@ -18,10 +18,11 @@ function Canvas() {
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
+  // Process deck text to get card names with quantities
+  const originalCardNames = Array.from(processRawText(d || DEFAULT_DECK.join("\n")));
+  
   // Card data from API
-  const { data } = useCards(
-    Array.from(processRawText(d || DEFAULT_DECK.join("\n")))
-  );
+  const { data } = useCards(originalCardNames);
 
   // Card state management
   const [cardState, dispatch] = useCardReducer({
@@ -37,7 +38,7 @@ function Canvas() {
   useEffect(() => {
     if (data) {
       const initializeDeck = async () => {
-        const mainCards: Card[] = mapDataToCards(data);
+        const mainCards: Card[] = mapDataToCards(data, originalCardNames);
         const fetchedRelatedCards: Card[] = await fetchRelatedCards(data);
         
         // Only main cards go in the drawable deck
@@ -58,7 +59,7 @@ function Canvas() {
       
       initializeDeck();
     }
-  }, [data, dispatch]);
+  }, [data, dispatch, originalCardNames]);
 
   // Card actions
   const drawCard = () => {
