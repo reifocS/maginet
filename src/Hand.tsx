@@ -8,7 +8,13 @@ interface HandProps {
 
 export default function Hand({ cards, setHoveredCard }: HandProps) {
   return (
-    <div className="hand">
+    <div 
+      className="hand"
+      onMouseLeave={() => {
+        // Fallback cleanup when mouse leaves the entire hand container
+        setHoveredCard(null);
+      }}
+    >
       {cards.map((card) => (
         <img
           key={card.id}

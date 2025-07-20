@@ -1,7 +1,7 @@
 import React from 'react';
-import { 
-  Tldraw, 
-  createTLStore, 
+import {
+  Tldraw,
+  createTLStore,
   defaultShapeUtils,
   useEditor,
 } from 'tldraw';
@@ -32,9 +32,94 @@ const customShapeUtils = [
 // Combine default shapes with custom MTG shapes
 const shapeUtils = [...defaultShapeUtils, ...customShapeUtils];
 
+// Component to handle card preview using tldraw's editor events
+function TldrawCardPreview() {
+  const editor = useEditor();
+  const [isCtrlPressed, setIsCtrlPressed] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.ctrlKey) {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || !e.ctrlKey) {
+        setIsCtrlPressed(false);
+        // Hide preview when Ctrl is released
+        const preview = document.getElementById('simple-card-preview');
+        if (preview) {
+          preview.classList.remove('visible');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isCtrlPressed) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Convert screen coordinates to page coordinates
+      const screenPoint = { x: e.clientX, y: e.clientY };
+      const pagePoint = editor.screenToPage(screenPoint);
+      const shapeAtPoint = editor.getShapeAtPoint(pagePoint);
+
+      if (shapeAtPoint && shapeAtPoint.type === 'mtg-card') {
+        const cardProps = shapeAtPoint.props as MTGCardShape['props'];
+        const cardSrc = cardProps.src[cardProps.srcIndex] || '';
+        console.log('🎯 Found MTG card under pointer:', cardSrc);
+
+        if (cardSrc) {
+          const preview = document.getElementById('simple-card-preview');
+          const img = preview?.querySelector('img');
+          if (preview && img) {
+            img.src = cardSrc;
+            preview.classList.add('visible');
+          }
+        }
+      } else {
+        // No card under pointer, hide preview
+        const preview = document.getElementById('simple-card-preview');
+        if (preview) {
+          preview.classList.remove('visible');
+        }
+      }
+    };
+
+    const handleMouseLeave = () => {
+      // Hide preview when mouse leaves the document
+      const preview = document.getElementById('simple-card-preview');
+      if (preview) {
+        preview.classList.remove('visible');
+      }
+    };
+
+    // Use global mousemove but with proper coordinate conversion
+    window.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [editor, isCtrlPressed]);
+
+  return null; // This component doesn't render anything
+}
+
 // Component to handle drag and drop inside Tldraw
 function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: string) => void }) {
   const editor = useEditor();
+
 
   React.useEffect(() => {
     const handleDrop = (e: DragEvent) => {
@@ -43,22 +128,22 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
       if (!mtgCardId) {
         return; // Not our drop, let tldraw handle it
       }
-      
+
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      
+
       try {
         const data = JSON.parse(e.dataTransfer?.getData('application/json') || '{}');
         if (data.type === 'mtg-card' && data.cardData) {
           const card = data.cardData;
-          
+
           // Get the current screen point where the drop occurred
           const screenPoint = { x: e.clientX, y: e.clientY };
-          
+
           // Convert to page coordinates
           const pagePoint = editor.screenToPage(screenPoint);
-          
+
           // Create the card shape at the drop position
           editor.createShape<MTGCardShape>({
             type: 'mtg-card',
@@ -100,7 +185,7 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
       // Use capture phase to intercept events before tldraw processes them
       canvasElement.addEventListener('drop', handleDrop, true);
       canvasElement.addEventListener('dragover', handleDragOver, true);
-      
+
       return () => {
         canvasElement.removeEventListener('drop', handleDrop, true);
         canvasElement.removeEventListener('dragover', handleDragOver, true);
@@ -111,17 +196,18 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
   return null; // This component doesn't render anything
 }
 
-export const TldrawCanvas = React.memo(function TldrawCanvas({ 
-  cards, 
-  deck, 
-  drawCard, 
-  mulligan, 
-  onShuffleDeck, 
+export const TldrawCanvas = React.memo(function TldrawCanvas({
+  cards,
+  deck,
+  drawCard,
+  mulligan,
+  onShuffleDeck,
   playCardFromHand,
   addCardToHand,
-  setHoveredCard, 
+  setHoveredCard,
   setUseTldraw
 }: TldrawCanvasProps): JSX.Element {
+
   // Create store with custom shapes
   const store = React.useMemo(() => {
     return createTLStore({
@@ -129,9 +215,10 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
     });
   }, []);
 
+
   return (
     <div style={{ position: 'absolute', inset: 0, top: 0, left: 0, right: 0, bottom: 0 }}>
-      <Tldraw 
+      <Tldraw
         store={store}
         shapeUtils={shapeUtils}
         components={{
@@ -139,21 +226,22 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
         }}
       >
         <TldrawDropHandler playCardFromHand={playCardFromHand} />
-        <MTGGamePanel 
+        <TldrawCardPreview />
+        <MTGGamePanel
           deck={deck}
           drawCard={drawCard}
           mulligan={mulligan}
           onShuffleDeck={onShuffleDeck}
         />
-        
-        <TldrawHand 
-          cards={cards} 
-          setHoveredCard={setHoveredCard} 
+
+        <TldrawHand
+          cards={cards}
+          setHoveredCard={setHoveredCard}
           playCardFromHand={playCardFromHand}
         />
 
         {/* Add toggle button to switch back */}
-        <button 
+        <button
           onClick={() => setUseTldraw(false)}
           style={{
             position: 'fixed',
@@ -170,6 +258,11 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
           Switch to Old Canvas
         </button>
       </Tldraw>
+
+      {/* Global card preview element */}
+      <div id="simple-card-preview" className="simple-card-preview">
+        <img src="" alt="Card preview" />
+      </div>
     </div>
   );
 });

@@ -1,5 +1,5 @@
 import { useEditor } from 'tldraw';
-import React, { useRef } from 'react';
+import React from 'react';
 import { Card } from './types/canvas';
 import { MTGCardShape } from './shapes/MTGCardShape';
 import './Canvas.css';
@@ -10,82 +10,38 @@ interface TldrawHandProps {
   playCardFromHand?: (cardId: string) => void;
 }
 
-export function TldrawHand({ cards, setHoveredCard, playCardFromHand }: TldrawHandProps) {
+export function TldrawHand({ cards, playCardFromHand }: TldrawHandProps) {
   const editor = useEditor();
-  const zoomedCardRef = useRef<HTMLDivElement>(null);
-  const currentCardSrc = useRef<string | null>(null);
 
-  // Check if Ctrl key is pressed
-  const isCtrlPressed = useRef(false);
-
-  // Direct DOM manipulation to avoid React re-renders
-  const showZoomedCard = (cardSrc: string) => {
-    currentCardSrc.current = cardSrc;
-    if (zoomedCardRef.current && isCtrlPressed.current) {
-      const img = zoomedCardRef.current.querySelector('img') as HTMLImageElement;
-      if (img) {
+  // Use global preview system for consistency - show immediately on hover
+  const showCardPreview = (cardSrc: string) => {
+    if (cardSrc) {
+      const preview = document.getElementById('simple-card-preview');
+      const img = preview?.querySelector('img');
+      if (preview && img) {
         img.src = cardSrc;
-        zoomedCardRef.current.style.display = 'block';
+        preview.classList.add('visible');
       }
     }
   };
 
-  const hideZoomedCard = () => {
-    currentCardSrc.current = null;
-    if (zoomedCardRef.current) {
-      zoomedCardRef.current.style.display = 'none';
+  const hideCardPreview = () => {
+    const preview = document.getElementById('simple-card-preview');
+    if (preview) {
+      preview.classList.remove('visible');
     }
   };
 
-  const updateZoomedCardVisibility = () => {
-    if (zoomedCardRef.current) {
-      if (isCtrlPressed.current && currentCardSrc.current) {
-        const img = zoomedCardRef.current.querySelector('img') as HTMLImageElement;
-        if (img) {
-          img.src = currentCardSrc.current;
-          zoomedCardRef.current.style.display = 'block';
-        }
-      } else {
-        zoomedCardRef.current.style.display = 'none';
-      }
-    }
-  };
-
-  // Listen for Ctrl key events and expose globally
+  // Cleanup on unmount
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.ctrlKey) {
-        isCtrlPressed.current = true;
-        (window as any).isCtrlPressed = true; // Expose globally for canvas cards
-        updateZoomedCardVisibility();
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || !e.ctrlKey) {
-        isCtrlPressed.current = false;
-        (window as any).isCtrlPressed = false; // Expose globally for canvas cards
-        updateZoomedCardVisibility();
-        // Hide canvas card preview when Ctrl is released
-        const canvasPreview = document.getElementById('canvas-card-preview');
-        if (canvasPreview) {
-          canvasPreview.style.display = 'none';
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      hideCardPreview();
     };
   }, []);
 
   const playCardToCanvas = (card: Card) => {
     const viewportCenter = editor.getViewportScreenCenter();
-    
+
     editor.createShape<MTGCardShape>({
       type: 'mtg-card',
       x: viewportCenter.x - 90,
@@ -96,7 +52,6 @@ export function TldrawHand({ cards, setHoveredCard, playCardFromHand }: TldrawHa
         src: card.src || [],
         srcIndex: card.srcIndex || 0,
         isFlipped: false,
-        rotation: 0,
         cardName: card.name || 'Magic Card',
       },
     });
@@ -112,6 +67,10 @@ export function TldrawHand({ cards, setHoveredCard, playCardFromHand }: TldrawHa
   return (
     <div 
       className="hand-container"
+      onMouseLeave={() => {
+        // Fallback cleanup when mouse leaves the entire hand container
+        hideCardPreview();
+      }}
       style={{
         position: 'absolute',
         bottom: '20px',
@@ -177,11 +136,11 @@ export function TldrawHand({ cards, setHoveredCard, playCardFromHand }: TldrawHa
           onMouseEnter={() => {
             const cardSrc = card.src?.[card.srcIndex || 0];
             if (cardSrc) {
-              showZoomedCard(cardSrc);
+              showCardPreview(cardSrc);
             }
           }}
           onMouseLeave={() => {
-            hideZoomedCard();
+            hideCardPreview();
           }}
         >
           <img
@@ -214,35 +173,6 @@ export function TldrawHand({ cards, setHoveredCard, playCardFromHand }: TldrawHa
           </div>
         </div>
       ))}
-      
-      {/* Zoomed card preview - controlled via direct DOM manipulation */}
-      <div 
-        ref={zoomedCardRef}
-        className="zoomed-card"
-        style={{ 
-          display: 'none',
-          pointerEvents: 'none',
-          position: 'fixed',
-          bottom: '160px', // Position above the hand container (which is 120px + 20px margin + 20px buffer)
-          right: '20px',
-          height: '400px', // Smaller height to fit better
-          width: '280px', // Fixed width based on Magic card aspect ratio
-          border: '2px solid black',
-          backgroundColor: 'white',
-          zIndex: 1000,
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-        }}
-      >
-        <img
-          src=""
-          alt="Zoomed card"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-      </div>
     </div>
   );
 }

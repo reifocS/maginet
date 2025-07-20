@@ -1,0 +1,25 @@
+/* Simple card preview that just works */
+.simple-card-preview {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  height: 420px;
+  border: 2px solid #000;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 9999;
+  display: none;
+}
+
+.simple-card-preview.visible {
+  display: block;
+}
+
+.simple-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}

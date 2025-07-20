@@ -6,6 +6,7 @@ import { useGesture } from "@use-gesture/react";
 
 import { Shape as ShapeComponent } from "./Shape";
 import "./Canvas.css";
+import "./SimpleCardPreview.css";
 import { DOMVector, screenToCanvas } from "./utils/vec";
 import Hand from "./Hand";
 import ContextMenu from "./ContextMenu";
@@ -25,7 +26,6 @@ import inputs, { normalizeWheel } from "./inputs";
 import { useShapeStore } from "./hooks/useShapeStore";
 import EditingTextShape from "./EditingTextShape";
 import { TldrawCanvas } from "./TldrawCanvas";
-// import ActionLog from "./ActionLog";
 
 import {
   Point,
@@ -106,7 +106,6 @@ function Canvas() {
       new Set(
         allParts.map((v) => {
           if (v.name.includes("//")) {
-            //Double faced card
             return v.name.split("//")[0].trim();
           }
           return v.name;
@@ -172,14 +171,10 @@ function Canvas() {
   };
 
   const sendBackToHand = () => {
-    // Note: In a real implementation, we'd need to track card IDs on canvas shapes
-    // For now, just remove shapes - players can manage cards manually on canvas
     removeSelectedImages();
   };
 
   const sendBackToDeck = () => {
-    // Note: In a real implementation, we'd need to track card IDs on canvas shapes
-    // For now, just remove shapes - players can manage cards manually on canvas
     removeSelectedImages();
   };
 
@@ -198,7 +193,7 @@ function Canvas() {
   };
 
   // Helper functions
-  function removeSelectedImages() {
+  const removeSelectedImages = () => {
     setShapes((prevShapes) =>
       prevShapes.filter((shape) => {
         if (shape.type === "image") {
@@ -208,11 +203,11 @@ function Canvas() {
       })
     );
     setSelectedShapeIds([]);
-  }
+  };
 
 
   // Shape actions
-  function onFlip() {
+  const onFlip = () => {
     if (mode === "select" && selectedShapeIds.length > 0) {
       setShapes((prevShapes) =>
         prevShapes.map((shape) =>
@@ -220,9 +215,9 @@ function Canvas() {
         )
       );
     }
-  }
+  };
 
-  function onEngageDisengageCard() {
+  const onEngageDisengageCard = () => {
     if (mode === "select" && selectedShapeIds.length > 0) {
       setShapes((prevShapes) =>
         prevShapes.map((shape) =>
@@ -235,7 +230,7 @@ function Canvas() {
         )
       );
     }
-  }
+  };
 
   const onShuffleDeck = () => {
     dispatch({ type: "SHUFFLE_DECK" });
@@ -266,31 +261,28 @@ function Canvas() {
     }
   };
 
-  const sendCardToBack = () => {
-    const selectedCards = shapes.filter((shape) =>
-      selectedShapeIds.includes(shape.id)
-    );
-    setShapes((prevShapes) =>
-      selectedCards.concat(
-        prevShapes.filter((shape) => !selectedShapeIds.includes(shape.id))
-      )
-    );
+  const moveSelectedShapes = (toBack: boolean) => {
+    const selectedCards = shapes.filter((shape) => selectedShapeIds.includes(shape.id));
+    const unselectedCards = shapes.filter((shape) => !selectedShapeIds.includes(shape.id));
+    
+    setShapes(toBack ? [...selectedCards, ...unselectedCards] : [...unselectedCards, ...selectedCards]);
     setSelectedShapeIds([]);
   };
 
-  const sendCardToFront = () => {
-    const selectedCards = shapes.filter((shape) =>
-      selectedShapeIds.includes(shape.id)
-    );
-    setShapes((prevShapes) =>
-      prevShapes
-        .filter((shape) => !selectedShapeIds.includes(shape.id))
-        .concat(selectedCards)
-    );
-    setSelectedShapeIds([]);
-  };
+  const sendCardToBack = () => moveSelectedShapes(true);
+  const sendCardToFront = () => moveSelectedShapes(false);
 
   // Event handlers
+  const createCardShape = (card: Card, point: number[]) => ({
+    id: generateId(),
+    point,
+    size: [100, 100],
+    type: "image" as const,
+    src: card.src,
+    srcIndex: 0,
+    rotation: 0,
+  });
+
   const handleDrop = (e: React.DragEvent<SVGElement>) => {
     e.preventDefault();
     const cardId = e.dataTransfer.getData("text/plain");
@@ -298,27 +290,11 @@ function Canvas() {
     const card = hand.find((card) => card.id === cardId);
     if (!card) return;
     
-    // Remove card from hand (it's now on canvas)
-    dispatch({ 
-      type: "PLAY_CARD", 
-      payload: card.id
-    });
-
-    setShapes((prevShapes) => [
-      ...prevShapes,
-      {
-        id: generateId(),
-        point: [x, y],
-        size: [100, 100],
-        type: "image",
-        src: card.src,
-        srcIndex: 0,
-        rotation: 0,
-      },
-    ]);
+    dispatch({ type: "PLAY_CARD", payload: card.id });
+    setShapes((prevShapes) => [...prevShapes, createCardShape(card, [x, y])]);
   };
 
-  function onPointerDownCanvas(e: React.PointerEvent<SVGElement>) {
+  const onPointerDownCanvas = (e: React.PointerEvent<SVGElement>) => {
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
     const point = [x, y];
 
@@ -362,9 +338,9 @@ function Canvas() {
       e.currentTarget.setPointerCapture(e.pointerId);
       setDragVector(new DOMVector(x, y, 0, 0));
     }
-  }
+  };
 
-  function onPointerMoveCanvas(e: React.PointerEvent<SVGElement>) {
+  const onPointerMoveCanvas = (e: React.PointerEvent<SVGElement>) => {
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
 
     // Handle panning
@@ -410,7 +386,7 @@ function Canvas() {
         setSelectedShapeIds([]);
       }
     }
-  }
+  };
 
   const onPointerUpCanvas = (e: React.PointerEvent<SVGElement>) => {
     // Handle panning end
@@ -440,7 +416,7 @@ function Canvas() {
     }
   };
 
-  function onTextBlur() {
+  const onTextBlur = () => {
     if (editingText?.text === "") {
       setShapes((prevShapes) =>
         prevShapes.filter((shape) => shape.id !== editingText.id)
@@ -448,7 +424,7 @@ function Canvas() {
     }
     setEditingText(null);
     setMode("select");
-  }
+  };
 
   const updateDraggingRef = useCallback(
     (newRef: { shape: Shape; origin: number[] } | null) => {
@@ -565,6 +541,11 @@ function Canvas() {
     function handleKeyUp(event: KeyboardEvent) {
       if (event.key === "Control") {
         setIsCommandPressed(false);
+        // Hide the simple preview when Ctrl is released
+        const preview = document.getElementById('simple-card-preview');
+        if (preview) {
+          preview.classList.remove('visible');
+        }
       }
     }
 
@@ -588,6 +569,21 @@ function Canvas() {
       toast.error(error.message);
     }
   }, [error]);
+
+  // Update simple preview when hoveredCard changes and Ctrl is pressed
+  useEffect(() => {
+    const preview = document.getElementById('simple-card-preview');
+    const img = preview?.querySelector('img');
+    
+    if (preview && img) {
+      if (isCommandPressed && hoveredCard) {
+        img.src = hoveredCard;
+        preview.classList.add('visible');
+      } else {
+        preview.classList.remove('visible');
+      }
+    }
+  }, [hoveredCard, isCommandPressed]);
 
   // Render preparation
   const receivedData: Shape[] = Object.values(receivedDataMap).flat();
@@ -776,6 +772,12 @@ function Canvas() {
           <img src={hoveredCard} alt={`Zoomed ${hoveredCard}`} />
         </div>
       )}
+
+      {/* Global card preview element */}
+      <div id="simple-card-preview" className="simple-card-preview">
+        <img src="" alt="Card preview" />
+      </div>
+
     </div>
   );
 }

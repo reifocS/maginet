@@ -33,14 +33,17 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
-  // Use card data hooks for search functionality
-  const { data } = useCards([]);
-  const relatedCards: Datum[] = []; // Simplified for now
+  const popularCards = [
+    "Lightning Bolt", "Counterspell", "Sol Ring", "Command Tower", "Path to Exile",
+    "Swords to Plowshares", "Dark Ritual", "Giant Growth", "Brainstorm", "Ponder",
+    "Llanowar Elves", "Birds of Paradise", "Shock", "Cancel", "Divination"
+  ];
+  const { data } = useCards(popularCards);
+  const relatedCards: Datum[] = [];
 
-  // Rate limiting for Prouton
-  function prouton() {
+  const prouton = () => {
     sendMessage({ type: "prouton", payload: "Prouton!" });
-  }
+  };
   const { rateLimitedFn: rateLimitedProuton, canCall: canCallProuton } =
     useRateLimit(prouton, {
       maxCalls: 30,
@@ -70,9 +73,25 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
 
 
 
-  // Get current camera position for centering
   const centerView = () => {
     editor.zoomToFit();
+  };
+
+  const buttonStyles = {
+    base: {
+      padding: '8px 12px',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '11px',
+      fontWeight: '500',
+    },
+    primary: { backgroundColor: '#3b82f6', color: 'white' },
+    danger: { backgroundColor: '#dc2626', color: 'white' },
+    secondary: { backgroundColor: '#6b7280', color: 'white' },
+    success: { backgroundColor: '#059669', color: 'white' },
+    warning: { backgroundColor: '#f59e0b', color: 'white' },
+    purple: { backgroundColor: '#8b5cf6', color: 'white' },
   };
 
   return (
@@ -81,7 +100,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
       <div style={{
         position: 'absolute',
         top: '20px',
-        left: '20px',
+        right: '20px',
         width: '280px',
         background: 'rgba(255, 255, 255, 0.98)',
         backdropFilter: 'blur(12px)',
@@ -131,16 +150,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
             />
             <button
               onClick={() => connectToPeer(peerId)}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.primary }}
             >
               Connect
             </button>
@@ -183,15 +193,10 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
             disabled={!canCallProuton}
             onClick={() => rateLimitedProuton()}
             style={{
+              ...buttonStyles.base,
+              ...(canCallProuton ? buttonStyles.warning : { backgroundColor: '#9ca3af', color: 'white' }),
               marginTop: '8px',
-              padding: '6px 12px',
-              backgroundColor: canCallProuton ? '#f59e0b' : '#9ca3af',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
               cursor: canCallProuton ? 'pointer' : 'not-allowed',
-              fontSize: '11px',
-              fontWeight: '500',
             }}
           >
             Prouton!
@@ -217,16 +222,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={centerView}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#6b7280',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.secondary }}
             >
               Center View
             </button>
@@ -253,46 +249,19 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' }}>
             <button
               onClick={drawCard}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.primary }}
             >
               Draw ({deck?.length})
             </button>
             <button
               onClick={mulligan}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.danger }}
             >
               Mulligan
             </button>
             <button
               onClick={onShuffleDeck}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#6b7280',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.secondary }}
             >
               Shuffle
             </button>
@@ -327,13 +296,10 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
                     <button
                       type="submit"
                       style={{
+                        ...buttonStyles.base,
+                        ...buttonStyles.primary,
                         padding: '12px',
-                        backgroundColor: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
                         borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '500',
                       }}
                     >
                       Submit
@@ -341,16 +307,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
                   </Form>
                 ))
               }
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: '500',
-              }}
+              style={{ ...buttonStyles.base, ...buttonStyles.purple }}
             >
               Select Deck
             </button>
@@ -417,16 +374,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck }: MTGGam
               />
               <button
                 type="submit"
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#059669',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                }}
+                style={{ ...buttonStyles.base, ...buttonStyles.success }}
               >
                 Add
               </button>
