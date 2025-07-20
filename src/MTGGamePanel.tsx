@@ -94,12 +94,6 @@ export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan
     }
   };
 
-  // Create card on canvas using built-in image shape
-
-  const centerView = () => {
-    editor.zoomToFit();
-  };
-
   const buttonStyles = {
     base: {
       padding: '8px 12px',
@@ -255,32 +249,6 @@ export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan
                 Join
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Canvas Tools Section */}
-        <div style={{
-          padding: '12px',
-          background: 'rgba(248, 250, 252, 0.6)',
-          border: '1px solid rgba(0, 0, 0, 0.04)',
-          borderRadius: '10px',
-        }}>
-          <h3 style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            margin: '0 0 8px 0',
-            color: '#374151',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}>Canvas Tools</h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <button
-              onClick={centerView}
-              style={{ ...buttonStyles.base, ...buttonStyles.secondary }}
-            >
-              Center View
-            </button>
           </div>
         </div>
 
