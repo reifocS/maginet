@@ -67,7 +67,10 @@ function TldrawCardPreview() {
 
       if (shapeAtPoint && shapeAtPoint.type === 'image') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cardSrc = (shapeAtPoint.props as any).url || '';
+        const cardSrc = (shapeAtPoint.meta as any).cardSrc[
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (shapeAtPoint.meta as any).cardSrcIndex
+        ] || '';
         console.log('🎯 Found card image under pointer:', cardSrc);
 
         if (cardSrc) {
