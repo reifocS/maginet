@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { useEditor, AssetRecordType } from 'tldraw';
 import { useLocation, Form } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -18,11 +18,6 @@ interface MTGGamePanelProps {
 export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
-  // Panel position state - start in top right
-  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: 20 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const panelRef = useRef<HTMLDivElement>(null);
 
   // Room state
   const [customRoomId, setCustomRoomId] = useState("");
@@ -39,70 +34,6 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
-  // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (panelRef.current) {
-      const rect = panelRef.current.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-      setIsDragging(true);
-    }
-  }, []);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-
-      // Add bounds checking to keep panel on screen
-      const panelWidth = 280;
-      const panelHeight = 600; // Approximate panel height
-      const bounds = {
-        minX: 0,
-        maxX: window.innerWidth - panelWidth,
-        minY: 0,
-        maxY: window.innerHeight - panelHeight
-      };
-
-      setPosition({
-        x: Math.max(bounds.minX, Math.min(bounds.maxX, newX)),
-        y: Math.max(bounds.minY, Math.min(bounds.maxY, newY))
-      });
-    }
-  }, [isDragging, dragOffset]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // Add global mouse event listeners
-  React.useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
-  // Handle window resize to keep panel in bounds
-  React.useEffect(() => {
-    const handleResize = () => {
-      const panelWidth = 280;
-      const panelHeight = 600;
-      setPosition(prev => ({
-        x: Math.min(prev.x, window.innerWidth - panelWidth),
-        y: Math.min(prev.y, window.innerHeight - panelHeight)
-      }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Play card from deck directly to canvas
   const playCardFromDeck = (card: Card) => {
@@ -189,11 +120,10 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
     <>
       {/* Main Game Panel */}
       <div
-        ref={panelRef}
         style={{
           position: 'absolute',
-          top: `${position.y}px`,
-          left: `${position.x}px`,
+          top: `42px`,
+          left: `0px`,
           width: '280px',
           background: 'rgba(255, 255, 255, 0.98)',
           backdropFilter: 'blur(12px)',
@@ -209,33 +139,6 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
           zIndex: 1000,
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}>
-
-        {/* Drag Handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          style={{
-            padding: '8px 12px',
-            background: 'rgba(0, 0, 0, 0.05)',
-            borderRadius: '12px 12px 0 0',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-            marginBottom: '12px',
-            userSelect: 'none',
-          }}
-        >
-          <span style={{
-            fontSize: '10px',
-            fontWeight: '600',
-            color: '#6b7280',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}>
-            ⋮⋮ MTG Game Panel ⋮⋮
-          </span>
-        </div>
 
         {/* Room Sharing Section */}
         <div style={{
