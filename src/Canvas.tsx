@@ -20,7 +20,7 @@ function Canvas() {
 
   // Process deck text to get card names with quantities
   const originalCardNames = Array.from(processRawText(d || DEFAULT_DECK.join("\n")));
-  
+
   // Card data from API
   const { data } = useCards(originalCardNames);
 
@@ -30,7 +30,7 @@ function Canvas() {
     deck: [],
   });
   const { hand, deck } = cardState;
-  
+
   // Related cards state (separate from deck)
   const [relatedCards, setRelatedCards] = useState<Card[]>([]);
 
@@ -40,23 +40,16 @@ function Canvas() {
       const initializeDeck = async () => {
         const mainCards: Card[] = mapDataToCards(data, originalCardNames);
         const fetchedRelatedCards: Card[] = await fetchRelatedCards(data);
-        
+
         // Only main cards go in the drawable deck
         dispatch({ type: "INITIALIZE_DECK", payload: mainCards });
-        
+
         // Related cards are stored separately for browser display only
         setRelatedCards(fetchedRelatedCards);
-        
-        toast(`Deck initialized with ${mainCards.length} main cards and ${fetchedRelatedCards.length} related cards`);
 
-        // Draw a few cards for testing
-        setTimeout(() => {
-          dispatch({ type: "DRAW_CARD" });
-          dispatch({ type: "DRAW_CARD" });
-          dispatch({ type: "DRAW_CARD" });
-        }, 500);
+        toast(`Deck initialized with ${mainCards.length} main cards and ${fetchedRelatedCards.length} related cards`);
       };
-      
+
       initializeDeck();
     }
   }, [data, dispatch, originalCardNames]);
