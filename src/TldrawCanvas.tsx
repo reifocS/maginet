@@ -10,7 +10,6 @@ import { MTGGamePanel } from './MTGGamePanel';
 import { TldrawHand } from './TldrawHand';
 import { MTGContextMenu } from './MTGContextMenu';
 import { Card } from './types/canvas';
-import { usePeerStore } from './hooks/usePeerConnection';
 
 interface TldrawCanvasProps {
   cards: Card[]; // hand
@@ -20,8 +19,9 @@ interface TldrawCanvasProps {
   onShuffleDeck: () => void;
   playCardFromHand: (cardId: string) => void;
   addCardToHand: (cardData: Card) => void;
+  sendToTopOfDeck: (cardData: Card) => void;
+  sendToBottomOfDeck: (cardData: Card) => void;
   setHoveredCard: (card: string | null) => void;
-  setUseTldraw: (useTldraw: boolean) => void;
 }
 
 
@@ -235,28 +235,13 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
   onShuffleDeck,
   playCardFromHand,
   addCardToHand,
+  sendToTopOfDeck,
+  sendToBottomOfDeck,
   setHoveredCard,
-  setUseTldraw
 }: TldrawCanvasProps): JSX.Element {
 
-  // Get peer connection info for room ID
-  const { peer } = usePeerStore();
-  
   // Room ID state - can be changed by user
-  const [roomId, setRoomId] = React.useState(() => {
-    // Generate initial room ID based on peer connection
-    if (peer?.id) {
-      return `mtg-game-${peer.id}`;
-    }
-    return 'mtg-game-default';
-  });
-
-  // Update room ID when peer changes (only if still using default)
-  React.useEffect(() => {
-    if (peer?.id && roomId === 'mtg-game-default') {
-      setRoomId(`mtg-game-${peer.id}`);
-    }
-  }, [peer?.id, roomId]);
+  const [roomId, setRoomId] = React.useState('mtg-game-default');
 
   // Use Tldraw's built-in sync for multiplayer - keep it simple
   const store = useSyncDemo({
@@ -269,7 +254,13 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
       <Tldraw
         store={store}
         components={{
-          ContextMenu: () => <MTGContextMenu addCardToHand={addCardToHand} />,
+          ContextMenu: () => (
+            <MTGContextMenu 
+              addCardToHand={addCardToHand}
+              sendToTopOfDeck={sendToTopOfDeck}
+              sendToBottomOfDeck={sendToBottomOfDeck}
+            />
+          ),
         }}
       >
         <TldrawDropHandler playCardFromHand={playCardFromHand} />
@@ -288,24 +279,6 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
           setHoveredCard={setHoveredCard}
           playCardFromHand={playCardFromHand}
         />
-
-        {/* Add toggle button to switch back */}
-        <button
-          onClick={() => setUseTldraw(false)}
-          style={{
-            position: 'fixed',
-            top: '10px',
-            left: '10px',
-            zIndex: 1000,
-            padding: '8px 16px',
-            backgroundColor: '#f0f0f0',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Switch to Old Canvas
-        </button>
       </Tldraw>
 
       {/* Global card preview element */}

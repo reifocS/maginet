@@ -16,7 +16,9 @@ export type CardAction =
   | { type: "PLAY_CARD"; payload: string } // Remove single card from hand
   | { type: "ADD_TO_HAND"; payload: Datum }
   | { type: "ADD_CARD_TO_HAND"; payload: Card } // Add specific card to hand
-  | { type: "SHUFFLE_DECK" };
+  | { type: "SHUFFLE_DECK" }
+  | { type: "SEND_TO_TOP_OF_DECK"; payload: Card } // Send card to top of deck
+  | { type: "SEND_TO_BOTTOM_OF_DECK"; payload: Card }; // Send card to bottom of deck
 
 export function cardReducer(state: CardState, action: CardAction): CardState {
   const newState = { ...state, lastAction: action.type };
@@ -70,6 +72,18 @@ export function cardReducer(state: CardState, action: CardAction): CardState {
       return {
         ...newState,
         hand: [...state.hand, action.payload],
+      };
+      
+    case "SEND_TO_TOP_OF_DECK":
+      return {
+        ...newState,
+        deck: [action.payload, ...state.deck],
+      };
+      
+    case "SEND_TO_BOTTOM_OF_DECK":
+      return {
+        ...newState,
+        deck: [...state.deck, action.payload],
       };
       
     default:

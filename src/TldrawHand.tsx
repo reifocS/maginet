@@ -1,7 +1,6 @@
 import { useEditor, AssetRecordType } from 'tldraw';
 import React from 'react';
 import { Card } from './types/canvas';
-import './Canvas.css';
 
 interface TldrawHandProps {
   cards: Card[];

@@ -3,8 +3,6 @@ import { useEditor, AssetRecordType } from 'tldraw';
 import { useLocation, Form } from "react-router-dom";
 import toast from "react-hot-toast";
 import useModal from "./hooks/useModal";
-import { usePeerStore } from "./hooks/usePeerConnection";
-import { useRateLimit } from "./hooks/useRateLimit";
 import useCards, { Datum } from "./hooks/useCards";
 import { Card } from './types/canvas';
 
@@ -20,12 +18,7 @@ interface MTGGamePanelProps {
 export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
-  // Peer connection state
-  const connectToPeer = usePeerStore((state) => state.connectToPeer);
-  const sendMessage = usePeerStore((state) => state.sendMessage);
-  const peer = usePeerStore((state) => state.peer);
-  const connections = usePeerStore((state) => state.connections);
-  const [peerId, setPeerId] = useState("");
+  // Room state
   const [customRoomId, setCustomRoomId] = useState("");
 
   // Modal state
@@ -43,15 +36,6 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
   ];
   const { data } = useCards(popularCards);
   const relatedCards: Datum[] = [];
-
-  const prouton = () => {
-    sendMessage({ type: "prouton", payload: "Prouton!" });
-  };
-  const { rateLimitedFn: rateLimitedProuton, canCall: canCallProuton } =
-    useRateLimit(prouton, {
-      maxCalls: 30,
-      timeWindow: 60000,
-    });
 
   const allCards = data ? [...data, ...(relatedCards ?? [])] : [];
 
@@ -113,8 +97,6 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
     }
   };
 
-
-
   const centerView = () => {
     editor.zoomToFit();
   };
@@ -159,92 +141,6 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
 
-        {/* Multiplayer Section */}
-        <div style={{
-          padding: '12px',
-          background: 'rgba(248, 250, 252, 0.6)',
-          border: '1px solid rgba(0, 0, 0, 0.04)',
-          borderRadius: '10px',
-        }}>
-          <h3 style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            margin: '0 0 8px 0',
-            color: '#374151',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}>Multiplayer</h3>
-
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <input
-              type="text"
-              onChange={(e) => setPeerId(e.target.value)}
-              value={peerId}
-              placeholder="Enter peer ID"
-              style={{
-                flex: 1,
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                background: 'white',
-                fontSize: '12px',
-              }}
-            />
-            <button
-              onClick={() => connectToPeer(peerId)}
-              style={{ ...buttonStyles.base, ...buttonStyles.primary }}
-            >
-              Connect
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '500', color: '#6b7280' }}>Your ID:</span>
-            <input
-              type="text"
-              defaultValue={peer?.id}
-              readOnly
-              style={{
-                flex: 1,
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: '1px solid rgba(0, 0, 0, 0.06)',
-                backgroundColor: '#f8fafc',
-                fontSize: '11px',
-                fontFamily: 'Monaco, Menlo, monospace',
-                color: '#6b7280',
-              }}
-            />
-          </div>
-
-          {connections.size > 0 && (
-            <div style={{
-              padding: '6px 8px',
-              background: 'rgba(34, 197, 94, 0.1)',
-              border: '1px solid rgba(34, 197, 94, 0.2)',
-              borderRadius: '4px',
-              fontSize: '11px',
-              color: '#166534',
-              fontWeight: '500',
-            }}>
-              ✓ Connected to {connections.size} peer{connections.size !== 1 ? 's' : ''}
-            </div>
-          )}
-
-          <button
-            disabled={!canCallProuton}
-            onClick={() => rateLimitedProuton()}
-            style={{
-              ...buttonStyles.base,
-              ...(canCallProuton ? buttonStyles.warning : { backgroundColor: '#9ca3af', color: 'white' }),
-              marginTop: '8px',
-              cursor: canCallProuton ? 'pointer' : 'not-allowed',
-            }}
-          >
-            Prouton!
-          </button>
-        </div>
-
         {/* Room Sharing Section */}
         <div style={{
           padding: '12px',
@@ -259,7 +155,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
             color: '#374151',
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
-          }}>Room Sharing</h3>
+          }}>Multiplayer Room</h3>
 
           <div style={{ marginBottom: '8px' }}>
             <label style={{ 
@@ -392,7 +288,6 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
             </button>
           </div>
         </div>
-
 
         {/* Deck Management Section */}
         <div style={{

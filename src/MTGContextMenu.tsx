@@ -11,12 +11,11 @@ import { Card } from './types/canvas';
 
 interface MTGContextMenuProps {
   addCardToHand?: (cardData: Card) => void;
-  // TODO: Add deck-related functions if needed
-  // sendToTopOfDeck?: (cardData: Card) => void;
-  // sendToBottomOfDeck?: (cardData: Card) => void;
+  sendToTopOfDeck?: (cardData: Card) => void;
+  sendToBottomOfDeck?: (cardData: Card) => void;
 }
 
-export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
+export function MTGContextMenu({ addCardToHand, sendToTopOfDeck, sendToBottomOfDeck }: MTGContextMenuProps = {}) {
   const editor = useEditor();
   const selectedShapeIds = useValue('selectedShapeIds', () => editor.getSelectedShapeIds(), [editor]);
   
@@ -135,6 +134,42 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
     editor.deleteShapes(selectedIds);
   };
 
+  const sendToTopOfDeckAction = () => {
+    if (sendToTopOfDeck) {
+      selectedMTGCards.forEach(card => {
+        // Create card data structure using metadata
+        const cardData = {
+          id: Math.random().toString(36).substr(2, 9), // Generate new ID
+          name: (card.meta?.cardName as string) || 'Magic Card',
+          src: (card.meta?.cardSrc as string[]) || [],
+          srcIndex: (card.meta?.cardSrcIndex as number) || 0,
+        };
+        sendToTopOfDeck(cardData);
+      });
+    }
+    // Remove from canvas
+    const selectedIds = selectedMTGCards.map(card => card.id);
+    editor.deleteShapes(selectedIds);
+  };
+
+  const sendToBottomOfDeckAction = () => {
+    if (sendToBottomOfDeck) {
+      selectedMTGCards.forEach(card => {
+        // Create card data structure using metadata
+        const cardData = {
+          id: Math.random().toString(36).substr(2, 9), // Generate new ID
+          name: (card.meta?.cardName as string) || 'Magic Card',
+          src: (card.meta?.cardSrc as string[]) || [],
+          srcIndex: (card.meta?.cardSrcIndex as number) || 0,
+        };
+        sendToBottomOfDeck(cardData);
+      });
+    }
+    // Remove from canvas
+    const selectedIds = selectedMTGCards.map(card => card.id);
+    editor.deleteShapes(selectedIds);
+  };
+
   const removeFromCanvas = () => {
     // Remove from canvas - matches original "Remove from Canvas" behavior
     const selectedIds = selectedMTGCards.map(card => card.id);
@@ -178,6 +213,18 @@ export function MTGContextMenu({ addCardToHand }: MTGContextMenuProps = {}) {
               label="Send to Hand"
               icon="arrow-left"
               onSelect={sendToHand}
+            />
+            <TldrawUiMenuItem
+              id="send-to-top-of-deck"
+              label="Send to Top of Deck"
+              icon="arrow-up"
+              onSelect={sendToTopOfDeckAction}
+            />
+            <TldrawUiMenuItem
+              id="send-to-bottom-of-deck"
+              label="Send to Bottom of Deck"
+              icon="arrow-down"
+              onSelect={sendToBottomOfDeckAction}
             />
             <TldrawUiMenuItem
               id="copy"
