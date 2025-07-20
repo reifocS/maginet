@@ -9,7 +9,7 @@ import { useCardReducer } from "./hooks/useCardReducer";
 import { DEFAULT_DECK } from "./DEFAULT_DECK";
 import { TldrawCanvas } from "./TldrawCanvas";
 import { Card } from "./types/canvas";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./SimpleCardPreview.css";
 
 function Canvas() {
@@ -29,17 +29,24 @@ function Canvas() {
     deck: [],
   });
   const { hand, deck } = cardState;
+  
+  // Related cards state (separate from deck)
+  const [relatedCards, setRelatedCards] = useState<Card[]>([]);
 
   // Initialize deck when data loads
   useEffect(() => {
     if (data) {
       const initializeDeck = async () => {
         const mainCards: Card[] = mapDataToCards(data);
-        const relatedCards: Card[] = await fetchRelatedCards(data);
-        const allCards = [...mainCards, ...relatedCards];
+        const fetchedRelatedCards: Card[] = await fetchRelatedCards(data);
         
-        dispatch({ type: "INITIALIZE_DECK", payload: allCards });
-        toast(`Deck initialized with ${mainCards.length} main cards and ${relatedCards.length} related cards`);
+        // Only main cards go in the drawable deck
+        dispatch({ type: "INITIALIZE_DECK", payload: mainCards });
+        
+        // Related cards are stored separately for browser display only
+        setRelatedCards(fetchedRelatedCards);
+        
+        toast(`Deck initialized with ${mainCards.length} main cards and ${fetchedRelatedCards.length} related cards`);
 
         // Draw a few cards for testing
         setTimeout(() => {
@@ -87,6 +94,7 @@ function Canvas() {
     <TldrawCanvas
       cards={hand}
       deck={deck}
+      relatedCards={relatedCards}
       drawCard={drawCard}
       mulligan={mulligan}
       onShuffleDeck={onShuffleDeck}

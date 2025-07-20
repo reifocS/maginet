@@ -14,6 +14,7 @@ import { Card } from './types/canvas';
 interface TldrawCanvasProps {
   cards: Card[]; // hand
   deck: Card[];
+  relatedCards: Card[];
   drawCard: () => void;
   mulligan: () => void;
   onShuffleDeck: () => void;
@@ -233,6 +234,7 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
 export const TldrawCanvas = React.memo(function TldrawCanvas({
   cards,
   deck,
+  relatedCards,
   drawCard,
   mulligan,
   onShuffleDeck,
@@ -269,6 +271,7 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
         <TldrawCardPreview />
         <MTGGamePanel
           deck={deck}
+          relatedCards={relatedCards}
           drawCard={drawCard}
           mulligan={mulligan}
           onShuffleDeck={onShuffleDeck}

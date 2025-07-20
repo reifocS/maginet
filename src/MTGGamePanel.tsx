@@ -7,6 +7,7 @@ import { Card } from './types/canvas';
 
 interface MTGGamePanelProps {
   deck: Card[];
+  relatedCards: Card[];
   drawCard: () => void;
   mulligan: () => void;
   onShuffleDeck: () => void;
@@ -14,7 +15,7 @@ interface MTGGamePanelProps {
   onRoomIdChange: (newRoomId: string) => void;
 }
 
-export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
+export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
   // Panel position state - start in top right
@@ -470,7 +471,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
               color: '#374151',
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
-            }}>Deck Browser ({deck?.length || 0})</h3>
+            }}>Deck Browser ({(deck?.length || 0) + (relatedCards?.length || 0)})</h3>
             <button
               onClick={() => setIsDeckBrowserOpen(!isDeckBrowserOpen)}
               style={{
@@ -513,8 +514,8 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                 borderRadius: '6px',
                 background: 'white',
               }}>
-                {deck && deck.length > 0 ? (
-                  deck
+                {(deck && deck.length > 0) || (relatedCards && relatedCards.length > 0) ? (
+                  [...(deck || []), ...(relatedCards || [])]
                     .filter(card =>
                       !deckSearchTerm ||
                       (card.name && card.name.toLowerCase().includes(deckSearchTerm.toLowerCase()))
@@ -529,11 +530,12 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                           alignItems: 'center',
                           padding: '6px 8px',
                           cursor: 'pointer',
-                          borderBottom: index < deck.length - 1 ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
+                          borderBottom: index < (deck?.length || 0) + (relatedCards?.length || 0) - 1 ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
                           transition: 'background-color 0.2s',
+                          opacity: card.isRelatedCard ? 0.8 : 1,
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                          e.currentTarget.style.backgroundColor = card.isRelatedCard ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = 'transparent';
@@ -582,7 +584,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                           borderRadius: '3px',
                           marginLeft: '6px',
                         }}>
-                          {card.isRelatedCard ? 'Related' : 'Play'}
+                          Play
                         </div>
                       </div>
                     ))
@@ -605,7 +607,7 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                   marginTop: '4px',
                   textAlign: 'center',
                 }}>
-                  {deck?.filter(card =>
+                  {[...(deck || []), ...(relatedCards || [])]?.filter(card =>
                     card.name && card.name.toLowerCase().includes(deckSearchTerm.toLowerCase())
                   ).length || 0} cards found
                 </div>
