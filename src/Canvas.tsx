@@ -35,7 +35,7 @@ function Canvas() {
       const initialDeck: Card[] = mapDataToCards(data);
       dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
       toast(`Deck initialized with ${initialDeck.length} cards`);
-      
+
       // Draw a few cards for testing
       setTimeout(() => {
         dispatch({ type: "DRAW_CARD" });
@@ -74,12 +74,9 @@ function Canvas() {
     dispatch({ type: "SEND_TO_BOTTOM_OF_DECK", payload: cardData });
   };
 
-  const setHoveredCard = (_card: string | null) => {
-    // Hovered card state is now handled within TldrawCanvas/TldrawHand
-  };
 
   return (
-    <TldrawCanvas 
+    <TldrawCanvas
       cards={hand}
       deck={deck}
       drawCard={drawCard}
@@ -89,7 +86,6 @@ function Canvas() {
       addCardToHand={addCardToHand}
       sendToTopOfDeck={sendToTopOfDeck}
       sendToBottomOfDeck={sendToBottomOfDeck}
-      setHoveredCard={setHoveredCard}
     />
   );
 }

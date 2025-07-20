@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useEditor, AssetRecordType } from 'tldraw';
 import { useLocation, Form } from "react-router-dom";
 import toast from "react-hot-toast";
 import useModal from "./hooks/useModal";
-import useCards, { Datum } from "./hooks/useCards";
 import { Card } from './types/canvas';
 
 interface MTGGamePanelProps {
@@ -18,8 +17,18 @@ interface MTGGamePanelProps {
 export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
+  // Panel position state - start in top right
+  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
+
   // Room state
   const [customRoomId, setCustomRoomId] = useState("");
+
+  // Deck browser state
+  const [isDeckBrowserOpen, setIsDeckBrowserOpen] = useState(false);
+  const [deckSearchTerm, setDeckSearchTerm] = useState("");
 
   // Modal state
   const [modal, showModal] = useModal();
@@ -29,28 +38,83 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
-  const popularCards = [
-    "Lightning Bolt", "Counterspell", "Sol Ring", "Command Tower", "Path to Exile",
-    "Swords to Plowshares", "Dark Ritual", "Giant Growth", "Brainstorm", "Ponder",
-    "Llanowar Elves", "Birds of Paradise", "Shock", "Cancel", "Divination"
-  ];
-  const { data } = useCards(popularCards);
-  const relatedCards: Datum[] = [];
+  // Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (panelRef.current) {
+      const rect = panelRef.current.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      setIsDragging(true);
+    }
+  }, []);
 
-  const allCards = data ? [...data, ...(relatedCards ?? [])] : [];
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
 
-  // Create card on canvas using built-in image shape
-  const createCardOnCanvas = (cardData: Datum) => {
+      // Add bounds checking to keep panel on screen
+      const panelWidth = 280;
+      const panelHeight = 600; // Approximate panel height
+      const bounds = {
+        minX: 0,
+        maxX: window.innerWidth - panelWidth,
+        minY: 0,
+        maxY: window.innerHeight - panelHeight
+      };
+
+      setPosition({
+        x: Math.max(bounds.minX, Math.min(bounds.maxX, newX)),
+        y: Math.max(bounds.minY, Math.min(bounds.maxY, newY))
+      });
+    }
+  }, [isDragging, dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add global mouse event listeners
+  React.useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // Handle window resize to keep panel in bounds
+  React.useEffect(() => {
+    const handleResize = () => {
+      const panelWidth = 280;
+      const panelHeight = 600;
+      setPosition(prev => ({
+        x: Math.min(prev.x, window.innerWidth - panelWidth),
+        y: Math.min(prev.y, window.innerHeight - panelHeight)
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Play card from deck directly to canvas
+  const playCardFromDeck = (card: Card) => {
     const viewportCenter = editor.getViewportScreenCenter();
-    const imageUrl = cardData.image_uris?.normal;
+    const cardImageUrl = card.src?.[card.srcIndex || 0];
 
-    console.log('🎯 Creating card from search:', { cardData, imageUrl });
+    console.log('🎯 Playing card from deck:', { card, cardImageUrl });
 
-    if (imageUrl) {
+    if (cardImageUrl) {
       try {
         // Create asset ID first
         const assetId = AssetRecordType.createId();
-        
+
         // Create the asset
         editor.createAssets([
           {
@@ -58,8 +122,8 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
             type: 'image',
             typeName: 'asset',
             props: {
-              name: cardData.name,
-              src: imageUrl,
+              name: card.name || 'Magic Card',
+              src: cardImageUrl,
               w: 180,
               h: 251,
               mimeType: 'image/jpeg',
@@ -81,21 +145,23 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
           },
           meta: {
             isMTGCard: true,
-            cardName: cardData.name,
-            cardSrc: [imageUrl],
-            cardSrcIndex: 0,
-            originalCardId: `search-${cardData.id}`,
+            cardName: card.name,
+            cardSrc: card.src,
+            cardSrcIndex: card.srcIndex || 0,
+            originalCardId: card.id,
           },
         });
 
-        console.log('✅ Search card shape created with asset:', assetId);
+        console.log('✅ Deck card shape created with asset:', assetId);
       } catch (error) {
-        console.error('❌ Failed to create search card shape:', error);
+        console.error('❌ Failed to create deck card shape:', error);
       }
     } else {
-      console.error('❌ No image URL found for card data:', cardData);
+      console.error('❌ No card image URL found for deck card:', card);
     }
   };
+
+  // Create card on canvas using built-in image shape
 
   const centerView = () => {
     editor.zoomToFit();
@@ -121,25 +187,54 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
   return (
     <>
       {/* Main Game Panel */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        width: '280px',
-        background: 'rgba(255, 255, 255, 0.98)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(0, 0, 0, 0.08)',
-        borderRadius: '16px',
-        padding: '16px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        zIndex: 1000,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}>
+      <div
+        ref={panelRef}
+        style={{
+          position: 'absolute',
+          top: `${position.y}px`,
+          left: `${position.x}px`,
+          width: '280px',
+          background: 'rgba(255, 255, 255, 0.98)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: '16px',
+          padding: '16px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          zIndex: 1000,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        }}>
+
+        {/* Drag Handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            padding: '8px 12px',
+            background: 'rgba(0, 0, 0, 0.05)',
+            borderRadius: '12px 12px 0 0',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            marginBottom: '12px',
+            userSelect: 'none',
+          }}
+        >
+          <span style={{
+            fontSize: '10px',
+            fontWeight: '600',
+            color: '#6b7280',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>
+            ⋮⋮ MTG Game Panel ⋮⋮
+          </span>
+        </div>
 
         {/* Room Sharing Section */}
         <div style={{
@@ -158,9 +253,9 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
           }}>Multiplayer Room</h3>
 
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ 
-              fontSize: '11px', 
-              fontWeight: '500', 
+            <label style={{
+              fontSize: '11px',
+              fontWeight: '500',
               color: '#6b7280',
               display: 'block',
               marginBottom: '4px'
@@ -201,9 +296,9 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
           </div>
 
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ 
-              fontSize: '11px', 
-              fontWeight: '500', 
+            <label style={{
+              fontSize: '11px',
+              fontWeight: '500',
               color: '#6b7280',
               display: 'block',
               marginBottom: '4px'
@@ -247,19 +342,6 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
                 Join
               </button>
             </div>
-          </div>
-
-          <div style={{
-            padding: '6px 8px',
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
-            borderRadius: '4px',
-            fontSize: '10px',
-            color: '#1e40af',
-            fontWeight: '400',
-            lineHeight: '1.4',
-          }}>
-            💡 Share your room ID or join someone else's room for real-time collaboration!
           </div>
         </div>
 
@@ -373,73 +455,155 @@ export function MTGGamePanel({ deck, drawCard, mulligan, onShuffleDeck, roomId, 
           </div>
         </div>
 
-        {/* Card Search */}
-        {allCards && allCards.length > 0 && (
-          <div style={{
-            padding: '12px',
-            background: 'rgba(248, 250, 252, 0.6)',
-            border: '1px solid rgba(0, 0, 0, 0.04)',
-            borderRadius: '10px',
-          }}>
+        {/* Deck Browser Section */}
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248, 250, 252, 0.6)',
+          border: '1px solid rgba(0, 0, 0, 0.04)',
+          borderRadius: '10px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h3 style={{
               fontSize: '12px',
               fontWeight: '600',
-              margin: '0 0 8px 0',
+              margin: '0',
               color: '#374151',
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
-            }}>Card Search</h3>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const target = e.target as typeof e.target & {
-                  card_name: { value: string };
-                };
-                const card = allCards.find(
-                  (c) => c.name.toLowerCase() === target.card_name.value.toLowerCase()
-                );
-                if (card) {
-                  createCardOnCanvas(card);
-                } else {
-                  console.error("Card not found");
-                }
-                target.card_name.value = "";
+            }}>Deck Browser ({deck?.length || 0})</h3>
+            <button
+              onClick={() => setIsDeckBrowserOpen(!isDeckBrowserOpen)}
+              style={{
+                ...buttonStyles.base,
+                ...buttonStyles.secondary,
+                padding: '4px 8px',
+                fontSize: '10px',
               }}
-              style={{ display: 'flex', gap: '8px' }}
             >
-              <datalist id="cards">
-                {Array.from(new Set([...allCards.map((c) => c.name).sort()])).map(
-                  (card) => (
-                    <option key={card} value={card} />
-                  )
-                )}
-              </datalist>
-              <input
-                type="search"
-                id="cards"
-                name="card_name"
-                list="cards"
-                required
-                placeholder="Search card name..."
-                style={{
-                  flex: 1,
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  background: 'white',
-                  fontSize: '12px',
-                }}
-              />
-              <button
-                type="submit"
-                style={{ ...buttonStyles.base, ...buttonStyles.success }}
-              >
-                Add
-              </button>
-            </form>
+              {isDeckBrowserOpen ? '▼ Hide' : '▶ Show'}
+            </button>
           </div>
-        )}
+
+          {isDeckBrowserOpen && (
+            <>
+              {/* Deck Search */}
+              <div style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Search deck..."
+                  value={deckSearchTerm}
+                  onChange={(e) => setDeckSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    background: 'white',
+                    fontSize: '11px',
+                    marginBottom: '8px',
+                  }}
+                />
+              </div>
+
+              {/* Deck Cards List */}
+              <div style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                borderRadius: '6px',
+                background: 'white',
+              }}>
+                {deck && deck.length > 0 ? (
+                  deck
+                    .filter(card =>
+                      !deckSearchTerm ||
+                      (card.name && card.name.toLowerCase().includes(deckSearchTerm.toLowerCase()))
+                    )
+                    .map((card, index) => (
+                      <div
+                        key={`${card.id}-${index}`}
+                        onClick={() => playCardFromDeck(card)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '6px 8px',
+                          cursor: 'pointer',
+                          borderBottom: index < deck.length - 1 ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
+                          transition: 'background-color 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <img
+                          src={card.src?.[card.srcIndex || 0]}
+                          alt={card.name || 'Magic Card'}
+                          style={{
+                            width: '30px',
+                            height: '42px',
+                            objectFit: 'cover',
+                            borderRadius: '3px',
+                            marginRight: '8px',
+                            border: '1px solid rgba(0, 0, 0, 0.1)',
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div style={{
+                          flex: 1,
+                          fontSize: '11px',
+                          fontWeight: '500',
+                          color: '#374151',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {card.name || 'Unknown Card'}
+                        </div>
+                        <div style={{
+                          fontSize: '9px',
+                          color: '#6b7280',
+                          backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                          padding: '2px 4px',
+                          borderRadius: '3px',
+                          marginLeft: '6px',
+                        }}>
+                          Play
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    fontSize: '11px',
+                    color: '#6b7280',
+                  }}>
+                    No cards in deck
+                  </div>
+                )}
+              </div>
+
+              {deckSearchTerm && (
+                <div style={{
+                  fontSize: '10px',
+                  color: '#6b7280',
+                  marginTop: '4px',
+                  textAlign: 'center',
+                }}>
+                  {deck?.filter(card =>
+                    card.name && card.name.toLowerCase().includes(deckSearchTerm.toLowerCase())
+                  ).length || 0} cards found
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
 
       </div>
 

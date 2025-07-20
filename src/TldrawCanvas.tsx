@@ -21,7 +21,6 @@ interface TldrawCanvasProps {
   addCardToHand: (cardData: Card) => void;
   sendToTopOfDeck: (cardData: Card) => void;
   sendToBottomOfDeck: (cardData: Card) => void;
-  setHoveredCard: (card: string | null) => void;
 }
 
 
@@ -67,6 +66,7 @@ function TldrawCardPreview() {
       const shapeAtPoint = editor.getShapeAtPoint(pagePoint);
 
       if (shapeAtPoint && shapeAtPoint.type === 'image') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cardSrc = (shapeAtPoint.props as any).url || '';
         console.log('🎯 Found card image under pointer:', cardSrc);
 
@@ -139,12 +139,12 @@ function TldrawDropHandler({ playCardFromHand }: { playCardFromHand: (cardId: st
           // Create the card using built-in image shape
           const cardImageUrl = card.src?.[card.srcIndex || 0];
           console.log('🎯 Dropping card to canvas:', { card, cardImageUrl });
-          
+
           if (cardImageUrl) {
             try {
               // Create asset ID first
               const assetId = AssetRecordType.createId();
-              
+
               // Create the asset
               editor.createAssets([
                 {
@@ -237,7 +237,6 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
   addCardToHand,
   sendToTopOfDeck,
   sendToBottomOfDeck,
-  setHoveredCard,
 }: TldrawCanvasProps): JSX.Element {
 
   // Room ID state - can be changed by user
@@ -255,7 +254,7 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
         store={store}
         components={{
           ContextMenu: () => (
-            <MTGContextMenu 
+            <MTGContextMenu
               addCardToHand={addCardToHand}
               sendToTopOfDeck={sendToTopOfDeck}
               sendToBottomOfDeck={sendToBottomOfDeck}
@@ -276,7 +275,6 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
 
         <TldrawHand
           cards={cards}
-          setHoveredCard={setHoveredCard}
           playCardFromHand={playCardFromHand}
         />
       </Tldraw>
