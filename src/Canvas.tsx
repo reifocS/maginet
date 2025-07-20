@@ -22,7 +22,7 @@ function Canvas() {
   const originalCardNames = Array.from(processRawText(d || DEFAULT_DECK.join("\n")));
 
   // Card data from API
-  const { data } = useCards(originalCardNames);
+  const { data, isLoading } = useCards(originalCardNames);
 
   // Card state management
   const [cardState, dispatch] = useCardReducer({
@@ -33,6 +33,7 @@ function Canvas() {
 
   // Related cards state (separate from deck)
   const [relatedCards, setRelatedCards] = useState<Card[]>([]);
+
 
   // Initialize deck when data loads
   useEffect(() => {
@@ -89,6 +90,7 @@ function Canvas() {
       cards={hand}
       deck={deck}
       relatedCards={relatedCards}
+      isLoading={isLoading}
       drawCard={drawCard}
       mulligan={mulligan}
       onShuffleDeck={onShuffleDeck}

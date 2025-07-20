@@ -8,6 +8,7 @@ import { Card } from './types/canvas';
 interface MTGGamePanelProps {
   deck: Card[];
   relatedCards: Card[];
+  isLoading: boolean;
   drawCard: () => void;
   mulligan: () => void;
   onShuffleDeck: () => void;
@@ -15,7 +16,7 @@ interface MTGGamePanelProps {
   onRoomIdChange: (newRoomId: string) => void;
 }
 
-export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
+export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
   const editor = useEditor();
 
 
@@ -23,7 +24,7 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
   const [customRoomId, setCustomRoomId] = useState("");
 
   // Deck browser state
-  const [isDeckBrowserOpen, setIsDeckBrowserOpen] = useState(false);
+  const [isDeckBrowserOpen, setIsDeckBrowserOpen] = useState(true);
   const [deckSearchTerm, setDeckSearchTerm] = useState("");
 
   // Modal state
@@ -118,6 +119,14 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
 
   return (
     <>
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+
       {/* Main Game Panel */}
       <div
         style={{
@@ -417,7 +426,28 @@ export function MTGGamePanel({ deck, relatedCards, drawCard, mulligan, onShuffle
                 borderRadius: '6px',
                 background: 'white',
               }}>
-                {(deck && deck.length > 0) || (relatedCards && relatedCards.length > 0) ? (
+                {isLoading ? (
+                  <div style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    fontSize: '11px',
+                    color: '#6b7280',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #e5e7eb',
+                      borderTop: '2px solid #3b82f6',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                    }}></div>
+                    Loading deck...
+                  </div>
+                ) : (deck && deck.length > 0) || (relatedCards && relatedCards.length > 0) ? (
                   [...(deck || []), ...(relatedCards || [])]
                     .filter(card =>
                       !deckSearchTerm ||
