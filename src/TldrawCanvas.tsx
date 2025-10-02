@@ -1,17 +1,22 @@
 import React from 'react';
+import type { JSX } from 'react';
 import {
   Tldraw,
   useEditor,
   AssetRecordType,
   DefaultMenuPanel,
   TLComponents,
+  TLStore,
+  createTLStore,
+  defaultBindingUtils,
+  defaultShapeUtils,
 } from 'tldraw';
-import { useSyncDemo } from '@tldraw/sync';
 import 'tldraw/tldraw.css';
 import { MTGGamePanel } from './MTGGamePanel';
 import { TldrawHand } from './TldrawHand';
 import { MTGContextMenu } from './MTGContextMenu';
 import { Card } from './types/canvas';
+import { useRoomSync } from './sync/useRoomSync';
 
 interface TldrawCanvasProps {
   cards: Card[]; // hand
@@ -252,9 +257,14 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
   const [roomId, setRoomId] = React.useState('mtg-game-default');
 
   // Use Tldraw's built-in sync for multiplayer - keep it simple
-  const store = useSyncDemo({
-    roomId,
-  });
+  const store = React.useMemo<TLStore>(() => {
+    return createTLStore({
+      shapeUtils: defaultShapeUtils,
+      bindingUtils: defaultBindingUtils,
+    });
+  }, []);
+
+  const sync = useRoomSync(roomId, store);
 
   // Custom menu panel positioned in bottom-right
   const CustomMenuPanel = React.useCallback(() => {
@@ -300,6 +310,7 @@ export const TldrawCanvas = React.memo(function TldrawCanvas({
           onShuffleDeck={onShuffleDeck}
           roomId={roomId}
           onRoomIdChange={setRoomId}
+          sync={sync}
         />
 
         <TldrawHand

@@ -4,6 +4,7 @@ import { useLocation, Form } from "react-router-dom";
 import toast from "react-hot-toast";
 import useModal from "./hooks/useModal";
 import { Card } from './types/canvas';
+import type { RoomSyncState } from './sync/useRoomSync';
 
 interface MTGGamePanelProps {
   deck: Card[];
@@ -14,14 +15,17 @@ interface MTGGamePanelProps {
   onShuffleDeck: () => void;
   roomId: string;
   onRoomIdChange: (newRoomId: string) => void;
+  sync: RoomSyncState;
 }
 
-export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange }: MTGGamePanelProps) {
+export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan, onShuffleDeck, roomId, onRoomIdChange, sync }: MTGGamePanelProps) {
   const editor = useEditor();
 
 
   // Room state
   const [customRoomId, setCustomRoomId] = useState("");
+  const [incomingOffer, setIncomingOffer] = useState("");
+  const [incomingAnswer, setIncomingAnswer] = useState("");
 
   // Deck browser state
   const [isDeckBrowserOpen, setIsDeckBrowserOpen] = useState(true);
@@ -35,7 +39,65 @@ export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
+  const statusColor = sync.status === 'online' ? '#059669' : sync.status === 'error' ? '#dc2626' : '#6b7280';
 
+  const copyToken = async (token: string, successMessage: string) => {
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(token);
+      toast.success(successMessage);
+    } catch (copyError) {
+      console.warn('[sync] Clipboard write failed', copyError);
+      toast.success(`${successMessage} (copy manually)`);
+    }
+  };
+
+  const handleCreateOffer = async () => {
+    try {
+      const token = await sync.createOffer();
+      void copyToken(token, 'Offer copied to clipboard. Share it with your peer.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create offer');
+    }
+  };
+
+  const handleAcceptOffer = async () => {
+    const token = incomingOffer.trim();
+    if (!token) return;
+    try {
+      const answer = await sync.acceptOffer(token);
+      setIncomingOffer('');
+      void copyToken(answer, 'Answer copied to clipboard. Send it to the host.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to accept offer');
+    }
+  };
+
+  const handleSubmitAnswer = async () => {
+    const token = incomingAnswer.trim();
+    if (!token) return;
+    try {
+      await sync.submitAnswer(token);
+      toast.success('Answer applied. Waiting for peer...');
+      setIncomingAnswer('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to apply answer');
+    }
+  };
+
+  const handleResetSync = () => {
+    sync.reset();
+    setIncomingOffer('');
+    setIncomingAnswer('');
+  };
+
+  const trimmedOffer = incomingOffer.trim();
+  const trimmedAnswer = incomingAnswer.trim();
+  const canCreateOffer = !['creating-offer', 'awaiting-answer', 'waiting-peer', 'connecting', 'online'].includes(sync.status);
+  const canAcceptOffer = trimmedOffer.length > 0 && !['creating-offer', 'awaiting-answer', 'waiting-peer', 'connecting', 'online'].includes(sync.status);
+  const canSubmitAnswer = trimmedAnswer.length > 0 && sync.status === 'awaiting-answer';
+
+  
   // Play card from deck directly to canvas
   const playCardFromDeck = (card: Card) => {
     const viewportCenter = editor.getViewportScreenCenter();
@@ -185,6 +247,17 @@ export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan
                   color: '#6b7280',
                 }}
               />
+              <span
+                style={{
+                  fontSize: '10px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  color: statusColor,
+                  fontWeight: 600,
+                }}
+              >
+                {sync.status}
+              </span>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(roomId);
@@ -250,6 +323,201 @@ export function MTGGamePanel({ deck, relatedCards, isLoading, drawCard, mulligan
               </button>
             </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '10px',
+            background: 'rgba(255, 255, 255, 0.7)',
+            borderRadius: '8px',
+            border: '1px solid rgba(0, 0, 0, 0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              color: '#374151',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>
+              Peer-to-Peer Sync
+            </span>
+            {sync.role && (
+              <span style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>
+                role: {sync.role}
+              </span>
+            )}
+          </div>
+
+          {sync.error && (
+            <div
+              style={{
+                fontSize: '10px',
+                color: '#dc2626',
+                background: 'rgba(220,38,38,0.08)',
+                borderRadius: '6px',
+                padding: '6px 8px',
+                lineHeight: 1.3,
+              }}
+            >
+              {sync.error}
+            </div>
+          )}
+
+          <button
+            onClick={handleCreateOffer}
+            disabled={!canCreateOffer}
+            style={{
+              ...buttonStyles.base,
+              ...buttonStyles.primary,
+              opacity: canCreateOffer ? 1 : 0.5,
+              cursor: canCreateOffer ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Create Offer (Host)
+          </button>
+
+          {sync.offerToken && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}>Share this offer code:</label>
+              <textarea
+                readOnly
+                value={sync.offerToken}
+                style={{
+                  width: '100%',
+                  minHeight: '70px',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  fontFamily: 'Monaco, Menlo, monospace',
+                  fontSize: '10px',
+                  background: '#f8fafc',
+                }}
+              />
+              <button
+                onClick={() => void copyToken(sync.offerToken ?? '', 'Offer copied to clipboard.')}
+                style={{
+                  ...buttonStyles.base,
+                  ...buttonStyles.secondary,
+                  alignSelf: 'flex-start',
+                  fontSize: '10px',
+                }}
+              >
+                Copy offer
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}>Paste offer from host:</label>
+            <textarea
+              value={incomingOffer}
+              onChange={(e) => setIncomingOffer(e.target.value)}
+              placeholder="Paste offer token here"
+              style={{
+                width: '100%',
+                minHeight: '70px',
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                fontFamily: 'Monaco, Menlo, monospace',
+                fontSize: '10px',
+                background: 'white',
+              }}
+            />
+            <button
+              onClick={handleAcceptOffer}
+              disabled={!canAcceptOffer}
+              style={{
+                ...buttonStyles.base,
+                ...buttonStyles.success,
+                opacity: canAcceptOffer ? 1 : 0.5,
+                cursor: canAcceptOffer ? 'pointer' : 'not-allowed',
+                fontSize: '10px',
+              }}
+            >
+              Accept offer & generate answer (Join)
+            </button>
+          </div>
+
+          {sync.answerToken && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}>Share this answer with the host:</label>
+              <textarea
+                readOnly
+                value={sync.answerToken}
+                style={{
+                  width: '100%',
+                  minHeight: '70px',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  fontFamily: 'Monaco, Menlo, monospace',
+                  fontSize: '10px',
+                  background: '#f8fafc',
+                }}
+              />
+              <button
+                onClick={() => void copyToken(sync.answerToken ?? '', 'Answer copied to clipboard.')}
+                style={{
+                  ...buttonStyles.base,
+                  ...buttonStyles.secondary,
+                  alignSelf: 'flex-start',
+                  fontSize: '10px',
+                }}
+              >
+                Copy answer
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 600, color: '#374151' }}>Paste answer from joiner:</label>
+            <textarea
+              value={incomingAnswer}
+              onChange={(e) => setIncomingAnswer(e.target.value)}
+              placeholder="Paste answer token here"
+              style={{
+                width: '100%',
+                minHeight: '70px',
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                fontFamily: 'Monaco, Menlo, monospace',
+                fontSize: '10px',
+                background: 'white',
+              }}
+            />
+            <button
+              onClick={handleSubmitAnswer}
+              disabled={!canSubmitAnswer}
+              style={{
+                ...buttonStyles.base,
+                ...buttonStyles.primary,
+                opacity: canSubmitAnswer ? 1 : 0.5,
+                cursor: canSubmitAnswer ? 'pointer' : 'not-allowed',
+                fontSize: '10px',
+              }}
+            >
+              Apply answer (Host)
+            </button>
+          </div>
+
+          <button
+            onClick={handleResetSync}
+            style={{
+              ...buttonStyles.base,
+              ...buttonStyles.secondary,
+              fontSize: '10px',
+            }}
+          >
+            Reset sync
+          </button>
         </div>
 
         {/* Deck Management Section */}
