@@ -4,6 +4,7 @@ import { screenToCanvas } from "./utils/vec";
 import vec from "./utils/vec";
 import { useShapeStore } from "./hooks/useShapeStore";
 import ShapeFactory from "./components/ShapeFactory";
+import { SelectionBox } from "./components/SelectionBox";
 
 export function Shape({
   shape,
@@ -135,6 +136,25 @@ export function Shape({
     },
   };
 
+  const handleResize = (
+    newSize: [number, number],
+    newPoint: [number, number]
+  ) => {
+    setShapes((prevShapes) =>
+      prevShapes.map((s) =>
+        s.id === shape.id ? { ...s, size: newSize, point: newPoint } : s
+      )
+    );
+  };
+
+  const handleRotate = (newRotation: number) => {
+    setShapes((prevShapes) =>
+      prevShapes.map((s) =>
+        s.id === shape.id ? { ...s, rotation: newRotation } : s
+      )
+    );
+  };
+
   return (
     <>
       <defs>
@@ -156,6 +176,14 @@ export function Shape({
         setHoveredCard={setHoveredCard}
         stackIndex={stackIndex}
       />
+      {selected && !readOnly && (
+        <SelectionBox
+          shape={shape}
+          camera={camera}
+          onResize={handleResize}
+          onRotate={handleRotate}
+        />
+      )}
     </>
   );
 }
