@@ -87,6 +87,7 @@ function ShapeFactory({
             ...(commonProps as React.SVGProps<SVGGElement>),
             onDoubleClick: editText,
           }}
+          transform={transform}
         />
       );
     default:

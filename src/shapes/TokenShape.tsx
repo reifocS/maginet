@@ -6,9 +6,11 @@ import { DOMVector } from "../utils/vec";
 const TokenShape = ({
   shape,
   commonProps,
+  transform,
 }: {
   shape: ShapeType;
   commonProps: React.SVGProps<SVGGElement>;
+  transform: string;
 }) => {
   const { point, size, color, text, fontSize } = shape;
   const vector = new DOMVector(point[0], point[1], size[0], size[1]);
@@ -17,7 +19,7 @@ const TokenShape = ({
 
   const { x, y, width, height } = coordinates;
   return (
-    <g {...commonProps}>
+    <g {...commonProps} transform={transform}>
       <ellipse
         cx={x + width / 2}
         cy={y + height / 2}
