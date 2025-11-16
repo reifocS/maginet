@@ -44,6 +44,7 @@ export function SelectionPanel({
   const peer = usePeerStore((state) => state.peer);
   const connections = usePeerStore((state) => state.connections);
   const [peerId, setPeerId] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
 
   // Modal state
   const [modal, showModal] = useModal();
@@ -97,6 +98,18 @@ export function SelectionPanel({
         <div className="peer-id-display">
           <label>Your ID:</label>
           <input type="text" defaultValue={peer?.id} readOnly />
+          <button
+            style={{ fontSize: "12px", padding: "4px 8px" }}
+            onClick={() => {
+              if (peer?.id) {
+                navigator.clipboard.writeText(peer.id);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }
+            }}
+          >
+            {copied ? "✓" : "Copy"}
+          </button>
         </div>
 
         {connections.size > 0 && (
@@ -287,10 +300,10 @@ export function SelectionPanel({
 
                     return selectedShapeIds.includes(shape.id)
                       ? {
-                          ...shape,
-                          fontSize: parseInt(e.target.value),
-                          size: [bounds.width, bounds.height],
-                        }
+                        ...shape,
+                        fontSize: parseInt(e.target.value),
+                        size: [bounds.width, bounds.height],
+                      }
                       : shape;
                   })
                 );
