@@ -31,6 +31,13 @@ function PortalImpl({
   }, []);
 
   useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, []);
+
+  useEffect(() => {
     let modalOverlayElement: HTMLElement | null = null;
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

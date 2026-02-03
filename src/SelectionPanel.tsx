@@ -7,6 +7,285 @@ import { Datum } from "./hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "./types/canvas";
 import "./SelectionPanel.css";
 
+type TooltipFace = {
+  name?: string;
+  manaCost?: string;
+  typeLine?: string;
+  oracleText?: string;
+  power?: string;
+  toughness?: string;
+};
+
+const getCardTooltipFaces = (card: Datum): TooltipFace[] => {
+  const faces = card.card_faces && card.card_faces.length > 0 ? card.card_faces : [card];
+  return faces.map((face) => ({
+    name: face.name ?? card.name,
+    manaCost: face.mana_cost ?? card.mana_cost,
+    typeLine: face.type_line ?? card.type_line,
+    oracleText: face.oracle_text ?? card.oracle_text,
+    power: face.power ?? card.power,
+    toughness: face.toughness ?? card.toughness,
+  }));
+};
+
+const positionCardTooltip = (
+  event: React.MouseEvent<HTMLButtonElement> | React.FocusEvent<HTMLButtonElement>
+) => {
+  const button = event.currentTarget;
+  const tooltip = button.querySelector(
+    ".card-search-tooltip"
+  ) as HTMLDivElement | null;
+  if (!tooltip) return;
+
+  const modal = button.closest(".Modal__modal") as HTMLElement | null;
+  const modalRect = modal?.getBoundingClientRect() ?? {
+    left: 0,
+    top: 0,
+    right: window.innerWidth,
+    bottom: window.innerHeight,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+  const buttonRect = button.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  const padding = 8;
+  const gap = 8;
+
+  const spaceRight = modalRect.right - buttonRect.right;
+  const spaceLeft = buttonRect.left - modalRect.left;
+  const placeRight = spaceRight >= tooltipRect.width + gap || spaceRight >= spaceLeft;
+
+  let left = placeRight
+    ? buttonRect.right + gap
+    : buttonRect.left - gap - tooltipRect.width;
+
+  if (left + tooltipRect.width > modalRect.right - padding) {
+    left = modalRect.right - padding - tooltipRect.width;
+  }
+  if (left < modalRect.left + padding) {
+    left = modalRect.left + padding;
+  }
+
+  let top = buttonRect.top;
+  if (top + tooltipRect.height > modalRect.bottom - padding) {
+    top = modalRect.bottom - padding - tooltipRect.height;
+  }
+  if (top < modalRect.top + padding) {
+    top = modalRect.top + padding;
+  }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+};
+
+type ConnectModalProps = {
+  onConnect: (peerId: string) => void;
+};
+
+const ConnectModal = ({ onConnect }: ConnectModalProps) => {
+  const [value, setValue] = React.useState("");
+  const trimmedValue = value.trim();
+
+  return (
+    <div className="peer-connect-modal">
+      <form
+        className="peer-connection peer-connection--modal"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!trimmedValue) return;
+          onConnect(trimmedValue);
+        }}
+      >
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="Friend's peer ID"
+        />
+        <button className="success" type="submit" disabled={!trimmedValue}>
+          Connect
+        </button>
+      </form>
+      <div className="peer-connect-hint">
+        Share your ID and click connect to join a table.
+      </div>
+    </div>
+  );
+};
+
+type CardSearchModalProps = {
+  cards: Datum[];
+  addCardToHand: (card: Datum) => void;
+  setSelectedShapeIds: (ids: string[]) => void;
+  isMobile: boolean;
+};
+
+const CardSearchModal = ({
+  cards,
+  addCardToHand,
+  setSelectedShapeIds,
+  isMobile,
+}: CardSearchModalProps) => {
+  const [query, setQuery] = React.useState("");
+  const [previewCard, setPreviewCard] = React.useState<Datum | null>(null);
+  const [isCommandPressed, setIsCommandPressed] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Control") {
+        setIsCommandPressed(true);
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Control") {
+        setIsCommandPressed(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    setPreviewCard(null);
+  }, [query]);
+
+  const filteredCards = React.useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+      return cards;
+    }
+    return cards.filter((card) => card.name.toLowerCase().includes(trimmed));
+  }, [cards, query]);
+
+  const hasQuery = query.trim().length > 0;
+  const visibleCards = filteredCards.slice(0, isMobile ? 30 : 72);
+  const previewImage =
+    previewCard?.image_uris?.normal ??
+    previewCard?.card_faces?.[0]?.image_uris?.normal ??
+    "";
+
+  return (
+    <div className="card-search-panel card-search-panel--modal">
+      <form
+        className="card-search-controls card-search-controls--modal"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!hasQuery || !filteredCards.length) {
+            return;
+          }
+          addCardToHand(filteredCards[0]);
+          setQuery("");
+        }}
+      >
+        <input
+          onFocus={() => {
+            setSelectedShapeIds([]);
+          }}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search card name..."
+          aria-label="Search cards"
+        />
+        <button
+          className="success"
+          title="Add top match"
+          type="submit"
+          disabled={!hasQuery || !filteredCards.length}
+        >
+          Add
+        </button>
+      </form>
+      <div className="card-search-content card-search-content--modal">
+        <div
+          className="card-search-results card-search-results--modal"
+          onMouseLeave={() => setPreviewCard(null)}
+        >
+          {visibleCards.map((card) => {
+            const image =
+              card.image_uris?.small ??
+              card.card_faces?.[0]?.image_uris?.small ??
+              card.image_uris?.normal ??
+              card.card_faces?.[0]?.image_uris?.normal ??
+              "";
+            const tooltipFaces = getCardTooltipFaces(card);
+            const showTooltip = tooltipFaces.length > 0;
+            return (
+              <button
+                key={card.id}
+                type="button"
+                className="card-search-item"
+                onClick={() => addCardToHand(card)}
+                onMouseEnter={(event) => {
+                  setPreviewCard(card);
+                  positionCardTooltip(event);
+                }}
+                onMouseMove={positionCardTooltip}
+                onFocus={(event) => {
+                  setPreviewCard(card);
+                  positionCardTooltip(event);
+                }}
+              >
+                <img src={image} alt={card.name} />
+                <span>{card.name}</span>
+                {showTooltip && (
+                  <div className="card-search-tooltip" role="tooltip">
+                    {tooltipFaces.map((face, index) => (
+                      <div
+                        key={`${card.id}-face-${index}`}
+                        className="card-search-tooltip__face"
+                      >
+                        <div className="card-search-tooltip__header">
+                          <span className="card-search-tooltip__name">
+                            {face.name}
+                          </span>
+                          {face.manaCost && (
+                            <span className="card-search-tooltip__mana">
+                              {face.manaCost}
+                            </span>
+                          )}
+                        </div>
+                        {face.typeLine && (
+                          <div className="card-search-tooltip__type">
+                            {face.typeLine}
+                          </div>
+                        )}
+                        {face.oracleText && (
+                          <div className="card-search-tooltip__text">
+                            {face.oracleText}
+                          </div>
+                        )}
+                        {face.power && face.toughness && (
+                          <div className="card-search-tooltip__pt">
+                            {face.power}/{face.toughness}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+          {visibleCards.length === 0 && (
+            <div className="card-search-empty">No matches.</div>
+          )}
+        </div>
+      </div>
+      {isCommandPressed && previewImage && (
+        <div className="card-search-zoom">
+          <img src={previewImage} alt={previewCard?.name ?? "Card preview"} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export function SelectionPanel({
   onDrawCard,
   setMode,
@@ -19,12 +298,6 @@ export function SelectionPanel({
   deck,
   shapeType,
   setShapeType,
-  peerPresence,
-  heartbeatStaleMs,
-  peerNames,
-  rollCoin,
-  rollD6,
-  untapAll,
 }: {
   onDrawCard: () => void;
   setCamera: React.Dispatch<React.SetStateAction<Camera>>;
@@ -52,21 +325,12 @@ export function SelectionPanel({
   // Peer connection state
   const connectToPeer = usePeerStore((state) => state.connectToPeer);
   const peer = usePeerStore((state) => state.peer);
-  const connections = usePeerStore((state) => state.connections);
-  const [peerId, setPeerId] = React.useState("");
   const [copied, setCopied] = React.useState(false);
-  const [showPeerStatus, setShowPeerStatus] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window === "undefined"
       ? false
       : window.matchMedia("(max-width: 720px)").matches
   );
-  const [isCollapsed, setIsCollapsed] = React.useState(() =>
-    typeof window === "undefined"
-      ? false
-      : window.matchMedia("(max-width: 720px)").matches
-  );
-  const [isCommandPressed, setIsCommandPressed] = React.useState(false);
 
   // Modal state
   const [modal, showModal] = useModal();
@@ -75,10 +339,6 @@ export function SelectionPanel({
   const setSelectedShapeIds = useShapeStore(
     (state) => state.setSelectedShapeIds
   );
-
-  const [now, setNow] = React.useState(() => Date.now());
-  const [cardQuery, setCardQuery] = React.useState("");
-  const [previewCard, setPreviewCard] = React.useState<Datum | null>(null);
 
   // Deck state
   const location = useLocation();
@@ -96,373 +356,200 @@ export function SelectionPanel({
     return Array.from(map.values());
   })();
 
-  const filteredCards = (() => {
-    const query = cardQuery.trim().toLowerCase();
-    if (!query) {
-      return uniqueCards;
-    }
-    return uniqueCards.filter((card) =>
-      card.name.toLowerCase().includes(query)
-    );
-  })();
-
-  const hasQuery = cardQuery.trim().length > 0;
-  const visibleCards = filteredCards.slice(0, isMobile ? 30 : 72);
-  const previewImage =
-    previewCard?.image_uris?.normal ??
-    previewCard?.card_faces?.[0]?.image_uris?.normal ??
-    "";
-  const peerStatusList = Array.from(connections.keys()).map((peerId) => {
-    const lastSeen = peerPresence[peerId];
-    const stale = !lastSeen || now - lastSeen > heartbeatStaleMs;
-    const name = peerNames[peerId];
-    return {
-      peerId,
-      stale,
-      name,
-      label: !lastSeen
-        ? "Waiting..."
-        : `${Math.max(0, Math.round((now - lastSeen) / 1000))}s ago`,
-    };
-  });
-
-  React.useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  React.useEffect(() => {
-    setPreviewCard(null);
-  }, [cardQuery]);
-
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Control") {
-        setIsCommandPressed(true);
-      }
-    };
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Control") {
-        setIsCommandPressed(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
-
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const media = window.matchMedia("(max-width: 720px)");
     const handleChange = (event: MediaQueryListEvent) => {
       setIsMobile(event.matches);
-      setIsCollapsed(event.matches);
     };
     media.addEventListener("change", handleChange);
     return () => media.removeEventListener("change", handleChange);
   }, []);
 
+
+  const deckCount = deck?.length ?? 0;
+  const canCopyPeerId = Boolean(peer?.id);
+
+  const handleCopyPeerId = () => {
+    if (!peer?.id) return;
+    navigator.clipboard.writeText(peer.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openConnectModal = () => {
+    showModal(
+      "Connect",
+      (closeModal) => (
+        <ConnectModal
+          onConnect={(peerId) => {
+            connectToPeer(peerId);
+            closeModal();
+          }}
+        />
+      ),
+      true
+    );
+  };
+
+  const openCardSearchModal = () => {
+    showModal(
+      "Card Search",
+      () => (
+        <CardSearchModal
+          cards={uniqueCards}
+          addCardToHand={addCardToHand}
+          setSelectedShapeIds={setSelectedShapeIds}
+          isMobile={isMobile}
+        />
+      ),
+      true
+    );
+  };
+
   return (
-    <div
-      className={`selection-panel ${isMobile && isCollapsed ? "selection-panel--collapsed" : ""}`}
-    >
-      <div className="selection-panel-mobile-bar">
-        <button className="primary" onClick={onDrawCard}>
-          Draw ({deck?.length})
-        </button>
+    <div className="selection-panel selection-panel--integrated">
+      <div className="selection-panel__group selection-panel__group--top-left">
         <button
-          type="button"
-          className="selection-panel-collapse-toggle"
-          onClick={() => setIsCollapsed((prev) => !prev)}
-          aria-expanded={!isCollapsed}
-        >
-          {isCollapsed ? "Expand" : "Collapse"}
-        </button>
-      </div>
-      <div className="selection-panel-section selection-panel-section--primary">
-        <h3>Quick Actions</h3>
-
-        <div className="panel-block">
-          <div className="panel-block-title">Multiplayer</div>
-          <div className="peer-connection">
-            <input
-              type="text"
-              onChange={(e) => setPeerId(e.target.value)}
-              value={peerId}
-              placeholder="Friend's peer ID"
-            />
-            <button className="primary" onClick={() => connectToPeer(peerId)}>
-              Connect
-            </button>
-          </div>
-
-          <div className="peer-id-display">
-            <label>Your ID</label>
-            <input type="text" defaultValue={peer?.id} readOnly />
-            <button
-              className="peer-id-copy-btn"
-              onClick={() => {
-                if (peer?.id) {
-                  navigator.clipboard.writeText(peer.id);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }
-              }}
-            >
-              {copied ? "✓" : "Copy"}
-            </button>
-          </div>
-
-          {connections.size > 0 && (
-            <div className={`peer-connection-status ${!showPeerStatus ? "collapsed" : ""}`}>
-              <div className="peer-status-header">
-                <span>
-                  <span className="peer-status-indicator" aria-hidden="true" />
-                  Connected to {connections.size} peer
-                  {connections.size !== 1 ? "s" : ""}
-                </span>
-                <button
-                  type="button"
-                  className="peer-status-toggle"
-                  onClick={() => setShowPeerStatus((prev) => !prev)}
-                >
-                  {showPeerStatus ? "Hide" : "Show"}
-                </button>
-              </div>
-              {showPeerStatus && peerStatusList.length > 0 && (
-                <div className="peer-status-grid">
-                  {peerStatusList.map((status) => (
-                    <div
-                      key={status.peerId}
-                      className={`peer-status ${status.stale ? "stale" : "active"}`}
-                    >
-                      <div className="peer-status-id">{status.name || status.peerId}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="panel-divider" />
-
-        <div className="panel-block">
-          <div className="panel-block-title">Deck</div>
-          <div className="selection-panel-button-group deck-actions">
-            <button
-              className="primary"
-              onClick={() =>
-                showModal("Select deck", (closeModal) => (
-                  <Form
-                    className="modal-form"
-                    onSubmit={() => {
-                      closeModal();
-                    }}
-                  >
-                    <textarea
-                      id="deck"
-                      name="deck"
-                      defaultValue={d ?? ""}
-                      placeholder={`1 Legion Angel
+          className="selection-panel__pill"
+          onClick={() =>
+            showModal("Select deck", (closeModal) => (
+              <Form
+                className="modal-form"
+                onSubmit={() => {
+                  closeModal();
+                }}
+              >
+                <textarea
+                  id="deck"
+                  name="deck"
+                  defaultValue={d ?? ""}
+                  placeholder={`1 Legion Angel
 3 Wedding Announcement
 ...`}
-                    />
-                    <button className="modal-button" type="submit">
-                      Submit
-                    </button>
-                  </Form>
-                ))
-              }
-            >
-              Select Deck
-            </button>
-            <button className="primary" onClick={onDrawCard}>
-              Draw ({deck?.length})
-            </button>
-            <button onClick={onShuffleDeck}>Shuffle</button>
-            <button className="danger" onClick={onMulligan}>
-              Mulligan
-            </button>
-          </div>
-        </div>
-
-        {allCards && allCards.length > 0 && (
-          <div className="panel-block">
-            <div className="panel-block-title">Card Search</div>
-            <button
-              type="button"
-              onClick={() =>
-                showModal("Card Search", () => (
-                  <div className="card-search-panel card-search-panel--modal">
-                    <form
-                      className="card-search-controls card-search-controls--modal"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!hasQuery || !filteredCards.length) {
-                          return;
-                        }
-                        addCardToHand(filteredCards[0]);
-                        setCardQuery("");
-                      }}
-                    >
-                      <input
-                        onFocus={() => {
-                          setSelectedShapeIds([]);
-                        }}
-                        type="search"
-                        value={cardQuery}
-                        onChange={(event) => setCardQuery(event.target.value)}
-                        placeholder="Search card name..."
-                        aria-label="Search cards"
-                      />
-                      <button
-                        className="success"
-                        title="Add top match"
-                        type="submit"
-                        disabled={!hasQuery || !filteredCards.length}
-                      >
-                        Add
-                      </button>
-                    </form>
-                    <div className="card-search-content card-search-content--modal">
-                      <div
-                        className="card-search-results card-search-results--modal"
-                        onMouseLeave={() => setPreviewCard(null)}
-                      >
-                        {visibleCards.map((card) => {
-                          const image =
-                            card.image_uris?.small ??
-                            card.card_faces?.[0]?.image_uris?.small ??
-                            card.image_uris?.normal ??
-                            card.card_faces?.[0]?.image_uris?.normal ??
-                            "";
-                          return (
-                            <button
-                              key={card.id}
-                              type="button"
-                              className="card-search-item"
-                              onClick={() => addCardToHand(card)}
-                              onMouseEnter={() => setPreviewCard(card)}
-                              onFocus={() => setPreviewCard(card)}
-                            >
-                              <img src={image} alt={card.name} />
-                              <span>{card.name}</span>
-                            </button>
-                          );
-                        })}
-                        {visibleCards.length === 0 && (
-                          <div className="card-search-empty">No matches.</div>
-                        )}
-                      </div>
-                    </div>
-                    {isCommandPressed && previewImage && (
-                      <div className="card-search-zoom">
-                        <img
-                          src={previewImage}
-                          alt={previewCard?.name ?? "Card preview"}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))
-              }
-            >
-              Open Card Search
-            </button>
-          </div>
-        )}
+                />
+                <button className="modal-button" type="submit">
+                  Submit
+                </button>
+              </Form>
+            ))
+          }
+        >
+          Change Deck
+        </button>
+        <button className="selection-panel__pill" onClick={openConnectModal}>
+          Connect
+        </button>
       </div>
 
-      <details className="selection-panel-section panel-details panel-details--tools">
-        <summary>Tools</summary>
-        <div className="panel-block">
-          <div className="panel-block-title">Drawing</div>
-          <div className="shape-type-options">
-            <div className="shape-type-option">
-              <input
-                type="radio"
-                id="select"
-                name="action"
-                value="select"
-                checked={mode === "select"}
-                onChange={() => setMode("select")}
-              />
-              <label htmlFor="select">
-                <span className="tool-icon">&gt;</span>
-                <span className="tool-label">Select</span>
-              </label>
-            </div>
-            <div className="shape-type-option">
-              <input
-                type="radio"
-                id="create"
-                name="action"
-                value="create"
-                checked={mode === "create" && shapeType === "text"}
-                onChange={() => {
-                  setMode("create");
-                  setShapeType("text");
-                }}
-              />
-              <label htmlFor="create">
-                <span className="tool-icon">T</span>
-                <span className="tool-label">Text</span>
-              </label>
-            </div>
-            <div className="shape-type-option">
-              <input
-                type="radio"
-                id="add"
-                name="action"
-                checked={mode === "create" && shapeType === "token"}
-                onChange={() => {
-                  setMode("create");
-                  setShapeType("token");
-                }}
-              />
-              <label htmlFor="add">
-                <span className="tool-icon">O</span>
-                <span className="tool-label">Token</span>
-              </label>
-            </div>
-            <div className="shape-type-option">
-              <input
-                type="radio"
-                id="rectangle"
-                name="action"
-                checked={mode === "create" && shapeType === "rectangle"}
-                onChange={() => {
-                  setMode("create");
-                  setShapeType("rectangle");
-                }}
-              />
-              <label htmlFor="rectangle">
-                <span className="tool-icon">[]</span>
-                <span className="tool-label">Rect</span>
-              </label>
-            </div>
-          </div>
+      <div className="selection-panel__group selection-panel__group--top-right">
+        <div className="peer-id-inline">
+          <span className="peer-id-inline__label">id:</span>
+          <span className="peer-id-inline__value">
+            {peer?.id ?? "waiting..."}
+          </span>
         </div>
+        <button
+          className="selection-panel__pill"
+          onClick={handleCopyPeerId}
+          disabled={!canCopyPeerId}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
 
-        <div className="panel-block">
-          <div className="panel-block-title">Random (open devtools)</div>
-          <div className="selection-panel-button-group">
-            <button onClick={rollCoin}>Flip Coin</button>
-            <button onClick={rollD6}>Roll d6</button>
-          </div>
-        </div>
+      <div className="selection-panel__group selection-panel__group--left">
+        <button className="selection-panel__pill danger" onClick={onMulligan}>
+          Mulligan
+        </button>
+      </div>
 
-        <div className="panel-block">
-          <div className="panel-block-title">Board</div>
-          <div className="selection-panel-button-group">
-            <button onClick={untapAll}>Untap all</button>
+      <div className="selection-panel__group selection-panel__group--left-deck">
+        <button className="selection-panel__pill" onClick={onShuffleDeck}>
+          Shuffle
+        </button>
+        {allCards && allCards.length > 0 && (
+          <button
+            className="selection-panel__pill"
+            type="button"
+            onClick={openCardSearchModal}
+          >
+            Search
+          </button>
+        )}
+        <button className="deck-draw-button" onClick={onDrawCard}>
+          <span className="deck-count">{deckCount}</span>
+          <span className="deck-label">Draw</span>
+        </button>
+      </div>
+
+      <div className="selection-panel__group selection-panel__group--right">
+          <div className="shape-type-options shape-type-options--vertical">
+          <div className="shape-type-option" data-tooltip="Select / Move">
+            <input
+              type="radio"
+              id="select"
+              name="action"
+              value="select"
+              checked={mode === "select"}
+              onChange={() => setMode("select")}
+            />
+            <label htmlFor="select">
+              <span className="tool-icon">&gt;</span>
+              <span className="tool-label">Select</span>
+            </label>
+          </div>
+          <div className="shape-type-option" data-tooltip="Text">
+            <input
+              type="radio"
+              id="create"
+              name="action"
+              value="create"
+              checked={mode === "create" && shapeType === "text"}
+              onChange={() => {
+                setMode("create");
+                setShapeType("text");
+              }}
+            />
+            <label htmlFor="create">
+              <span className="tool-icon">T</span>
+              <span className="tool-label">Text</span>
+            </label>
+          </div>
+          <div className="shape-type-option" data-tooltip="Token">
+            <input
+              type="radio"
+              id="add"
+              name="action"
+              checked={mode === "create" && shapeType === "token"}
+              onChange={() => {
+                setMode("create");
+                setShapeType("token");
+              }}
+            />
+            <label htmlFor="add">
+              <span className="tool-icon">O</span>
+              <span className="tool-label">Token</span>
+            </label>
+          </div>
+          <div className="shape-type-option" data-tooltip="Rectangle">
+            <input
+              type="radio"
+              id="rectangle"
+              name="action"
+              checked={mode === "create" && shapeType === "rectangle"}
+              onChange={() => {
+                setMode("create");
+                setShapeType("rectangle");
+              }}
+            />
+            <label htmlFor="rectangle">
+              <span className="tool-icon">[]</span>
+              <span className="tool-label">Rect</span>
+            </label>
           </div>
         </div>
-      </details>
+      </div>
 
       {/* Modal Display */}
       {modal}

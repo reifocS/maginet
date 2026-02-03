@@ -1411,6 +1411,7 @@ function Canvas() {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (!isSetupComplete) return;
+      if (document.body.classList.contains("modal-open")) return;
       // Ignore keyboard shortcuts when editing text
       if (editingText) return;
       const target = event.target;
@@ -1498,6 +1499,7 @@ function Canvas() {
 
     function handleKeyUp(event: KeyboardEvent) {
       if (!isSetupComplete) return;
+      if (document.body.classList.contains("modal-open")) return;
       if (event.key === "Control") {
         setIsCommandPressed(false);
       } else if (event.key === " ") {
@@ -1893,25 +1895,8 @@ function Canvas() {
         <div
           className="help-dialog"
           onWheel={(e) => e.stopPropagation()}
-          style={{
-            position: "fixed",
-            top: "60px",
-            left: "20px",
-            background: "rgba(0, 0, 0, 0.9)",
-            color: "#fff",
-            padding: "20px",
-            paddingBottom: "16px",
-            borderRadius: "8px",
-            fontSize: "14px",
-            fontFamily: "monospace",
-            zIndex: 1001,
-            maxWidth: "350px",
-            maxHeight: "calc(100vh - 120px)",
-            overflowY: "auto",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-          }}
         >
-          <h3 style={{ marginTop: 0, marginBottom: "12px", fontSize: "16px" }}>
+          <h3 className="help-dialog-title">
             Canvas Controls
           </h3>
 
@@ -1997,20 +1982,7 @@ function Canvas() {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowHelp(false)}
-            style={{
-              marginTop: "16px",
-              padding: "8px 16px",
-              background: "#1976D2",
-              color: "#fff",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "13px",
-              width: "100%",
-            }}
-          >
+          <button onClick={() => setShowHelp(false)} className="help-dialog-close">
             Close
           </button>
         </div>
