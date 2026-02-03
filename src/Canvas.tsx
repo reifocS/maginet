@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
 
@@ -138,6 +138,7 @@ function Canvas() {
   // Peer connection state and actions
   const {
     initPeer,
+    connectToPeer,
     disconnect,
     sendMessage,
     onMessage,
@@ -434,17 +435,60 @@ function Canvas() {
 
   // URL parameters
   const location = useLocation();
+  const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
-  const d = params.get("deck");
+  const deckParam = params.get("deck") ?? "";
+
+  const [setupStep, setSetupStep] = useState<"deck" | "multiplayer">(() =>
+    deckParam.trim() ? "multiplayer" : "deck"
+  );
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
+  const [deckDraft, setDeckDraft] = useState(() => deckParam);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [setupPeerId, setSetupPeerId] = useState("");
+  const [setupCopied, setSetupCopied] = useState(false);
+
+  const deckDraftCount = processRawText(deckDraft).length;
+  const deckNames = deckParam.trim()
+    ? processRawText(deckParam.trim())
+    : [];
+
+  const handleDeckContinue = () => {
+    const trimmed = deckDraft.trim();
+    const parsed = processRawText(trimmed);
+    if (parsed.length === 0) {
+      setSetupError("Paste a deck list to continue.");
+      return;
+    }
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set("deck", trimmed);
+    navigate(`${location.pathname}?${nextParams.toString()}`, { replace: true });
+    setSetupError(null);
+    setSetupStep("multiplayer");
+  };
+
+  const handleUseSampleDeck = () => {
+    setDeckDraft(DEFAULT_DECK.join("\n"));
+    setSetupError(null);
+  };
+
+  const handleCopyPeerId = () => {
+    if (!peer?.id) return;
+    navigator.clipboard.writeText(peer.id);
+    setSetupCopied(true);
+    window.setTimeout(() => setSetupCopied(false), 2000);
+  };
 
   // Selection rectangle
   const selectionRect =
     dragVector && isDragging ? dragVector.toDOMRect() : null;
 
   // Card data
-  const { data } = useCards(
-    Array.from(processRawText(d || DEFAULT_DECK.join("\n")))
-  );
+  const {
+    data,
+    isLoading: isDeckLoading,
+    error: deckError,
+  } = useCards(deckNames);
 
   // Related cards data
   const allParts =
@@ -452,8 +496,8 @@ function Canvas() {
       ?.filter((v) => v.all_parts && v.all_parts.length > 0)
       .flatMap((v) => v.all_parts) ?? [];
 
-  const { data: relatedCards } = useCards(
-    Array.from(
+  const relatedCardNames = deckNames.length
+    ? Array.from(
       new Set(
         allParts.map((v) => {
           if (v.name.includes("//")) {
@@ -464,7 +508,9 @@ function Canvas() {
         })
       )
     ).concat(["copy", "Amoeboid Changeling"])
-  );
+    : [];
+
+  const { data: relatedCards } = useCards(relatedCardNames);
 
   // Card state
   const [cardState, dispatch] = useCardReducer({
@@ -489,7 +535,12 @@ function Canvas() {
   });
 
   handleWheelRef.current = (state) => {
+    if (!isSetupComplete) return;
     const { event, delta, ctrlKey } = state;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest(".selection-panel, .help-dialog, .Modal__modal")) {
+      return;
+    }
     event.preventDefault();
     // Ctrl+scroll or pinch = zoom, regular scroll = pan
     if (ctrlKey || event.metaKey) {
@@ -1359,6 +1410,7 @@ function Canvas() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (!isSetupComplete) return;
       // Ignore keyboard shortcuts when editing text
       if (editingText) return;
       const target = event.target;
@@ -1445,6 +1497,7 @@ function Canvas() {
     }
 
     function handleKeyUp(event: KeyboardEvent) {
+      if (!isSetupComplete) return;
       if (event.key === "Control") {
         setIsCommandPressed(false);
       } else if (event.key === " ") {
@@ -1473,6 +1526,7 @@ function Canvas() {
     showCounterControls,
     shapes,
     onEngageDisengageCard,
+    isSetupComplete,
   ]);
 
   useEffect(() => {
@@ -1508,6 +1562,171 @@ function Canvas() {
   const transform = `scale(${camera.z}) translate(${camera.x}px, ${camera.y}px)`;
   const editingTextShape = shapes.find((shape) => shape.id === editingText?.id);
   const shapesFiltered = shapes.filter((shape) => shape.id !== editingText?.id);
+  const deckCardCount = deckNames.length;
+  const deckStatus = deckError
+    ? "Deck failed to load. Check card names."
+    : deckCardCount > 0
+      ? isDeckLoading
+        ? `Loading ${deckCardCount} cards...`
+        : `Deck ready: ${deckCardCount} cards`
+      : "No deck selected";
+
+  if (!isSetupComplete) {
+    return (
+      <div className="setup-screen">
+        <div className="setup-card">
+          <div className="setup-header">
+            <div>
+              <p className="setup-kicker">Table Setup</p>
+              <h1 className="setup-title">
+                {setupStep === "deck"
+                  ? "Select your deck"
+                  : "Multiplayer (optional)"}
+              </h1>
+              <p className="setup-subtitle">
+                {setupStep === "deck"
+                  ? "Paste a decklist to load your cards. You can change it later."
+                  : "Connect now or skip to start solo. You can still connect later from the sidebar."}
+              </p>
+            </div>
+            <div className="setup-step-badge">
+              {setupStep === "deck" ? "Step 1 of 2" : "Step 2 of 2"}
+            </div>
+          </div>
+
+          {setupStep === "deck" ? (
+            <div className="setup-body">
+              <label className="setup-label" htmlFor="setup-deck">
+                Deck list
+              </label>
+              <textarea
+                id="setup-deck"
+                className="setup-textarea"
+                value={deckDraft}
+                onChange={(event) => {
+                  setDeckDraft(event.target.value);
+                  if (setupError) {
+                    setSetupError(null);
+                  }
+                }}
+                placeholder={`1 Legion Angel
+3 Wedding Announcement
+...`}
+              />
+              <div className="setup-meta">
+                <span>
+                  {deckDraftCount > 0
+                    ? `${deckDraftCount} cards detected`
+                    : "Paste one card per line"}
+                </span>
+                {setupError && <span className="setup-error">{setupError}</span>}
+              </div>
+              <div className="setup-actions">
+                <button
+                  type="button"
+                  className="setup-button ghost"
+                  onClick={handleUseSampleDeck}
+                >
+                  Use sample deck
+                </button>
+                <button
+                  type="button"
+                  className="setup-button primary"
+                  onClick={handleDeckContinue}
+                  disabled={deckDraftCount === 0}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="setup-body">
+              <div className="setup-deck-summary">
+                <span>Deck status</span>
+                <span>{deckStatus}</span>
+              </div>
+              {deckError && (
+                <div className="setup-error">
+                  Deck failed to load. Check card names.
+                </div>
+              )}
+              <div className="setup-grid">
+                <div className="setup-panel">
+                  <label className="setup-label" htmlFor="setup-peer-id">
+                    Friend&apos;s peer ID
+                  </label>
+                  <div className="setup-input-row">
+                    <input
+                      id="setup-peer-id"
+                      className="setup-input"
+                      type="text"
+                      value={setupPeerId}
+                      onChange={(event) => setSetupPeerId(event.target.value)}
+                      placeholder="Enter peer ID"
+                    />
+                    <button
+                      type="button"
+                      className="setup-button primary"
+                      onClick={() => connectToPeer(setupPeerId.trim())}
+                      disabled={!setupPeerId.trim()}
+                    >
+                      Connect
+                    </button>
+                  </div>
+                  {connections.size > 0 && (
+                    <div className="setup-status">
+                      Connected to {connections.size} peer
+                      {connections.size !== 1 ? "s" : ""}
+                    </div>
+                  )}
+                  {error && <div className="setup-error">{error.message}</div>}
+                </div>
+                <div className="setup-panel">
+                  <label className="setup-label">Your ID</label>
+                  <div className="setup-input-row">
+                    <input
+                      className="setup-input"
+                      type="text"
+                      readOnly
+                      value={peer?.id ?? "Generating ID..."}
+                    />
+                    <button
+                      type="button"
+                      className="setup-button ghost"
+                      onClick={handleCopyPeerId}
+                      disabled={!peer?.id}
+                    >
+                      {setupCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <div className="setup-hint">
+                    Share this ID so a friend can connect to you.
+                  </div>
+                </div>
+              </div>
+              <div className="setup-actions">
+                <button
+                  type="button"
+                  className="setup-button ghost"
+                  onClick={() => setSetupStep("deck")}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="setup-button primary"
+                  onClick={() => setIsSetupComplete(true)}
+                  disabled={deckNames.length === 0}
+                >
+                  Enter table
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -1524,6 +1743,7 @@ function Canvas() {
         onClearCounters={clearCounters}
       >
         <svg
+          className="canvas-surface"
           ref={ref}
           onPointerDownCapture={onPointerDownCaptureCanvas}
           onPointerMoveCapture={onPointerMoveCaptureCanvas}

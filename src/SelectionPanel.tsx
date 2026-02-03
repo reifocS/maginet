@@ -66,6 +66,7 @@ export function SelectionPanel({
       ? false
       : window.matchMedia("(max-width: 720px)").matches
   );
+  const [isCommandPressed, setIsCommandPressed] = React.useState(false);
 
   // Modal state
   const [modal, showModal] = useModal();
@@ -76,14 +77,41 @@ export function SelectionPanel({
   );
 
   const [now, setNow] = React.useState(() => Date.now());
+  const [cardQuery, setCardQuery] = React.useState("");
+  const [previewCard, setPreviewCard] = React.useState<Datum | null>(null);
 
   // Deck state
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const d = params.get("deck");
 
-
   const allCards = cards ? [...cards, ...(relatedCards ?? [])] : [];
+  const uniqueCards = (() => {
+    const map = new Map<string, Datum>();
+    allCards.forEach((card) => {
+      if (!map.has(card.name)) {
+        map.set(card.name, card);
+      }
+    });
+    return Array.from(map.values());
+  })();
+
+  const filteredCards = (() => {
+    const query = cardQuery.trim().toLowerCase();
+    if (!query) {
+      return uniqueCards;
+    }
+    return uniqueCards.filter((card) =>
+      card.name.toLowerCase().includes(query)
+    );
+  })();
+
+  const hasQuery = cardQuery.trim().length > 0;
+  const visibleCards = filteredCards.slice(0, isMobile ? 30 : 72);
+  const previewImage =
+    previewCard?.image_uris?.normal ??
+    previewCard?.card_faces?.[0]?.image_uris?.normal ??
+    "";
   const peerStatusList = Array.from(connections.keys()).map((peerId) => {
     const lastSeen = peerPresence[peerId];
     const stale = !lastSeen || now - lastSeen > heartbeatStaleMs;
@@ -101,6 +129,29 @@ export function SelectionPanel({
   React.useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  React.useEffect(() => {
+    setPreviewCard(null);
+  }, [cardQuery]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Control") {
+        setIsCommandPressed(true);
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Control") {
+        setIsCommandPressed(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -240,52 +291,89 @@ export function SelectionPanel({
         </div>
 
         {allCards && allCards.length > 0 && (
-          <details className="panel-details panel-details--nested">
-            <summary>Card Search</summary>
-            <form
-              className="card-search"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const target = e.target as typeof e.target & {
-                  card_name: {
-                    value: string;
-                  };
-                };
-                const card = allCards.find(
-                  (c) =>
-                    c.name.toLowerCase() === target.card_name.value.toLowerCase()
-                );
-                if (card) {
-                  addCardToHand(card);
-                } else {
-                  console.error("Card not found");
-                }
-                target.card_name.value = "";
-              }}
+          <div className="panel-block">
+            <div className="panel-block-title">Card Search</div>
+            <button
+              type="button"
+              onClick={() =>
+                showModal("Card Search", () => (
+                  <div className="card-search-panel card-search-panel--modal">
+                    <form
+                      className="card-search-controls card-search-controls--modal"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!hasQuery || !filteredCards.length) {
+                          return;
+                        }
+                        addCardToHand(filteredCards[0]);
+                        setCardQuery("");
+                      }}
+                    >
+                      <input
+                        onFocus={() => {
+                          setSelectedShapeIds([]);
+                        }}
+                        type="search"
+                        value={cardQuery}
+                        onChange={(event) => setCardQuery(event.target.value)}
+                        placeholder="Search card name..."
+                        aria-label="Search cards"
+                      />
+                      <button
+                        className="success"
+                        title="Add top match"
+                        type="submit"
+                        disabled={!hasQuery || !filteredCards.length}
+                      >
+                        Add
+                      </button>
+                    </form>
+                    <div className="card-search-content card-search-content--modal">
+                      <div
+                        className="card-search-results card-search-results--modal"
+                        onMouseLeave={() => setPreviewCard(null)}
+                      >
+                        {visibleCards.map((card) => {
+                          const image =
+                            card.image_uris?.small ??
+                            card.card_faces?.[0]?.image_uris?.small ??
+                            card.image_uris?.normal ??
+                            card.card_faces?.[0]?.image_uris?.normal ??
+                            "";
+                          return (
+                            <button
+                              key={card.id}
+                              type="button"
+                              className="card-search-item"
+                              onClick={() => addCardToHand(card)}
+                              onMouseEnter={() => setPreviewCard(card)}
+                              onFocus={() => setPreviewCard(card)}
+                            >
+                              <img src={image} alt={card.name} />
+                              <span>{card.name}</span>
+                            </button>
+                          );
+                        })}
+                        {visibleCards.length === 0 && (
+                          <div className="card-search-empty">No matches.</div>
+                        )}
+                      </div>
+                    </div>
+                    {isCommandPressed && previewImage && (
+                      <div className="card-search-zoom">
+                        <img
+                          src={previewImage}
+                          alt={previewCard?.name ?? "Card preview"}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))
+              }
             >
-              <datalist id="cards">
-                {Array.from(new Set([...allCards.map((c) => c.name).sort()])).map(
-                  (card) => (
-                    <option key={card} value={card} />
-                  )
-                )}
-              </datalist>
-              <input
-                onFocus={() => {
-                  setSelectedShapeIds([]);
-                }}
-                type="search"
-                id="cards"
-                name="card_name"
-                list="cards"
-                required
-                placeholder="Search card name..."
-              />
-              <button className="success" title="find in deck" type="submit">
-                Add
-              </button>
-            </form>
-          </details>
+              Open Card Search
+            </button>
+          </div>
         )}
       </div>
 
