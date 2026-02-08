@@ -5,7 +5,6 @@ import {
   useContextMenu,
 } from "use-context-menu";
 import "use-context-menu/styles.css";
-import "./ContextMenu.css";
 
 interface ContextMenuProps {
   onEngageDisengageCard: () => void;
@@ -37,7 +36,7 @@ export default function ContextMenu({
   onClearCounters,
 }: ContextMenuProps) {
   const { contextMenu, onContextMenu } = useContextMenu(
-    <div className="custom-context-menu">
+    <div className="custom-context-menu flex flex-col gap-0.5 py-1.5">
       <ContextMenuCategory>Card actions</ContextMenuCategory>
       <ContextMenuItem>
         <button onClick={onEngageDisengageCard}>Engage/Disengage</button>

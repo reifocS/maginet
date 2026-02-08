@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Counter } from "../types/canvas";
-import "./CounterControls.css";
 
 interface CounterControlsProps {
   currentCounters: Counter[];
@@ -36,7 +35,6 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
   const addNewCounter = () => {
     const existing = currentCounters.findIndex(c => c.label === newLabel);
     if (existing >= 0) {
-      // Update existing counter
       if (newLabel === "P/T") {
         updateCounter(existing, {
           power: (currentCounters[existing].power || 0) + 1,
@@ -48,7 +46,6 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
         });
       }
     } else {
-      // Add new counter
       const newCounter: Counter = {
         label: newLabel,
         color: newColor,
@@ -64,52 +61,55 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
   };
 
   return (
-    <div className="counter-controls-panel">
-      <div className="counter-controls-header">
-        <h4>Manage Counters</h4>
-        <button onClick={onClose} className="close-btn">×</button>
+    <div className="counter-controls-panel win-panel fixed top-1/2 left-1/2 z-(--z-counter-panel) min-w-[320px] max-w-[400px] -translate-x-1/2 -translate-y-1/2 p-3.5">
+      <div className="counter-controls-header win-titlebar -mx-3.5 -mt-3.5 mb-3 flex items-center justify-between px-2.5 py-1.5">
+        <h4 className="m-0 text-[13px] text-white">Manage Counters</h4>
+        <button
+          onClick={onClose}
+          className="win-bevel h-5 w-5 cursor-pointer bg-win-button p-0 text-base leading-none text-win-text hover:bg-win-hover"
+        >
+          ×
+        </button>
       </div>
 
-      {/* Existing counters */}
       {currentCounters.length > 0 && (
-        <div className="existing-counters">
+        <div className="mb-4 border-b border-win-border-mid pb-3">
           {currentCounters.map((counter, index) => (
-            <div key={index} className="counter-row">
+            <div key={index} className="mb-1.5 flex items-center gap-2 rounded-sm border border-win-border-mid bg-win-surface p-2">
               <div
-                className="counter-color-indicator"
+                className="h-3 w-3 shrink-0 rounded-sm"
                 style={{ backgroundColor: counter.color || "#666" }}
               />
-              <span className="counter-label">{counter.label}</span>
+              <span className="min-w-[60px] flex-1 text-[13px] text-win-text">{counter.label}</span>
 
               {isPTCounter(counter) ? (
-                // P/T counter with separate power/toughness controls
-                <div className="pt-controls">
-                  <div className="pt-group">
+                <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
-                      className="counter-btn minus"
+                      className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) - 1 })}
                     >
                       −
                     </button>
-                    <span className="counter-value">{counter.power || 0}</span>
+                    <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.power || 0}</span>
                     <button
-                      className="counter-btn plus"
+                      className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) + 1 })}
                     >
                       +
                     </button>
                   </div>
-                  <span className="pt-separator">/</span>
-                  <div className="pt-group">
+                  <span className="px-0.5 text-sm font-bold text-win-text-muted">/</span>
+                  <div className="flex items-center gap-1.5">
                     <button
-                      className="counter-btn minus"
+                      className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) - 1 })}
                     >
                       −
                     </button>
-                    <span className="counter-value">{counter.toughness || 0}</span>
+                    <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.toughness || 0}</span>
                     <button
-                      className="counter-btn plus"
+                      className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) + 1 })}
                     >
                       +
@@ -117,17 +117,16 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
                   </div>
                 </div>
               ) : (
-                // Single-value counter
-                <div className="counter-controls">
+                <div className="flex items-center gap-1.5">
                   <button
-                    className="counter-btn minus"
+                    className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) - 1 })}
                   >
                     −
                   </button>
-                  <span className="counter-value">{counter.value || 0}</span>
+                  <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.value || 0}</span>
                   <button
-                    className="counter-btn plus"
+                    className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) + 1 })}
                   >
                     +
@@ -136,7 +135,7 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
               )}
 
               <button
-                className="delete-btn"
+                className="win-bevel h-6 w-6 cursor-pointer bg-win-button p-0 text-xl leading-none text-win-danger hover:bg-win-hover"
                 onClick={() => deleteCounter(index)}
               >
                 ×
@@ -146,12 +145,11 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
         </div>
       )}
 
-      {/* Add new counter */}
-      <div className="new-counter-section">
-        <h5>Add Counter</h5>
-        <div className="new-counter-form">
+      <div className="new-counter-section mt-3">
+        <h5 className="mb-2 text-[13px] font-normal text-win-text-muted">Add Counter</h5>
+        <div className="mb-2 flex gap-2">
           <select
-            className="label-select"
+            className="win-input flex-1 cursor-pointer p-2 text-[13px] text-win-text"
             value={newLabel}
             onChange={(e) => {
               setNewLabel(e.target.value);
@@ -168,11 +166,11 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
             type="color"
             value={newColor}
             onChange={(e) => setNewColor(e.target.value)}
-            className="color-picker"
+            className="win-input h-9 w-10 cursor-pointer p-0.5"
             title="Counter color"
           />
           <button
-            className="add-btn"
+            className="win-button px-4 py-2 text-[13px] font-medium"
             onClick={addNewCounter}
           >
             Add
@@ -180,7 +178,7 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
         </div>
         <input
           type="text"
-          className="custom-label-input"
+          className="win-input w-full p-2 text-[13px] text-win-text placeholder:text-[#666666]"
           placeholder="Or type custom label..."
           value={COMMON_LABELS.includes(newLabel) ? "" : newLabel}
           onChange={(e) => setNewLabel(e.target.value || "P/T")}

@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
 
 import { Shape as ShapeComponent } from "./Shape";
-import "./Canvas.css";
 import Grid from "./Grid";
 import { DOMVector, screenToCanvas } from "./utils/vec";
 import Hand from "./Hand";
@@ -17,7 +16,6 @@ import useCards, {
   processRawText,
 } from "./hooks/useCards";
 import { usePeerStore } from "./hooks/usePeerConnection";
-import "./Modal.css";
 import { generateId } from "./utils/math";
 import { useCardReducer } from "./hooks/useCardReducer";
 import { DEFAULT_DECK } from "./DEFAULT_DECK";
@@ -1931,35 +1929,35 @@ function Canvas() {
 
   if (!isSetupComplete) {
     return (
-      <div className="setup-screen">
-        <div className="setup-card">
-          <div className="setup-header">
+      <div className="setup-screen fixed inset-0 z-(--z-setup) flex items-center justify-center p-[clamp(16px,4vw,48px)] bg-[repeating-linear-gradient(45deg,#dcdcdc_0px,#dcdcdc_12px,#cfcfcf_12px,#cfcfcf_24px)] animate-[setup-fade_0.2s_ease-out]">
+        <div className="setup-card win-panel w-[min(760px,92vw)] rounded-[6px] p-[clamp(16px,3vw,28px)] flex flex-col gap-4 animate-[setup-rise_0.25s_ease-out]">
+          <div className="setup-header flex justify-between items-start gap-4">
             <div>
-              <p className="setup-kicker">Table Setup</p>
-              <h1 className="setup-title">
+              <p className="setup-kicker m-0 mb-1.5 text-[10px] tracking-[0.24em] uppercase text-win-text-muted">Table Setup</p>
+              <h1 className="setup-title m-0 text-[clamp(22px,3vw,30px)]">
                 {setupStep === "deck"
                   ? "Select your deck"
                   : "Multiplayer (optional)"}
               </h1>
-              <p className="setup-subtitle">
+              <p className="setup-subtitle mt-1 text-[13px] text-win-text-muted max-w-[52ch]">
                 {setupStep === "deck"
                   ? "Paste a decklist to load your cards. You can change it later."
                   : "Connect now or skip to start solo. You can still connect later from the sidebar."}
               </p>
             </div>
-            <div className="setup-step-badge">
+            <div className="setup-step-badge rounded bg-win-subtle px-3 py-1.5 text-[10px] tracking-[0.18em] uppercase text-win-text whitespace-nowrap">
               {setupStep === "deck" ? "Step 1 of 2" : "Step 2 of 2"}
             </div>
           </div>
 
           {setupStep === "deck" ? (
-            <div className="setup-body">
-              <label className="setup-label" htmlFor="setup-deck">
+            <div className="setup-body flex flex-col gap-3">
+              <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted" htmlFor="setup-deck">
                 Deck list
               </label>
               <textarea
                 id="setup-deck"
-                className="setup-textarea"
+                className="setup-textarea win-input w-full p-3 text-[13px] leading-[1.4] font-[inherit] min-h-[180px] resize-y shadow-none"
                 value={deckDraft}
                 onChange={(event) => {
                   setDeckDraft(event.target.value);
@@ -1971,25 +1969,25 @@ function Canvas() {
 3 Wedding Announcement
 ...`}
               />
-              <div className="setup-meta">
+              <div className="setup-meta flex justify-between text-xs text-win-text-muted">
                 <span>
                   {deckDraftCount > 0
                     ? `${deckDraftCount} cards detected`
                     : "Paste one card per line"}
                 </span>
-                {setupError && <span className="setup-error">{setupError}</span>}
+                {setupError && <span className="setup-error text-xs text-win-danger">{setupError}</span>}
               </div>
-              <div className="setup-actions">
+              <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
                 <button
                   type="button"
-                  className="setup-button ghost"
+                  className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
                   onClick={handleUseSampleDeck}
                 >
                   Use sample deck
                 </button>
                 <button
                   type="button"
-                  className="setup-button primary"
+                  className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                   onClick={handleDeckContinue}
                   disabled={deckDraftCount === 0}
                 >
@@ -1998,25 +1996,25 @@ function Canvas() {
               </div>
             </div>
           ) : (
-            <div className="setup-body">
-              <div className="setup-deck-summary">
+            <div className="setup-body flex flex-col gap-3">
+              <div className="setup-deck-summary flex items-center justify-between text-xs text-win-text-muted rounded bg-[#e0e0e0] border border-win-border-mid px-2.5 py-2">
                 <span>Deck status</span>
                 <span>{deckStatus}</span>
               </div>
               {deckError && (
-                <div className="setup-error">
+                <div className="setup-error text-xs text-win-danger">
                   Deck failed to load. Check card names.
                 </div>
               )}
-              <div className="setup-grid">
-                <div className="setup-panel">
-                  <label className="setup-label" htmlFor="setup-peer-id">
+              <div className="setup-grid grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
+                <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5">
+                  <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted" htmlFor="setup-peer-id">
                     Friend&apos;s peer ID
                   </label>
-                  <div className="setup-input-row">
+                  <div className="setup-input-row flex gap-2.5 items-center">
                     <input
                       id="setup-peer-id"
-                      className="setup-input"
+                      className="setup-input win-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
                       type="text"
                       value={setupPeerId}
                       onChange={(event) => setSetupPeerId(event.target.value)}
@@ -2024,7 +2022,7 @@ function Canvas() {
                     />
                     <button
                       type="button"
-                      className="setup-button primary"
+                      className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                       onClick={() => connectToPeer(setupPeerId.trim())}
                       disabled={!setupPeerId.trim()}
                     >
@@ -2032,47 +2030,47 @@ function Canvas() {
                     </button>
                   </div>
                   {connections.size > 0 && (
-                    <div className="setup-status">
+                    <div className="setup-status text-xs text-win-text-muted">
                       Connected to {connections.size} peer
                       {connections.size !== 1 ? "s" : ""}
                     </div>
                   )}
-                  {error && <div className="setup-error">{error.message}</div>}
+                  {error && <div className="setup-error text-xs text-win-danger">{error.message}</div>}
                 </div>
-                <div className="setup-panel">
-                  <label className="setup-label">Your ID</label>
-                  <div className="setup-input-row">
+                <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5">
+                  <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted">Your ID</label>
+                  <div className="setup-input-row flex gap-2.5 items-center">
                     <input
-                      className="setup-input"
+                      className="setup-input win-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
                       type="text"
                       readOnly
                       value={peer?.id ?? "Generating ID..."}
                     />
                     <button
                       type="button"
-                      className="setup-button ghost"
+                      className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
                       onClick={handleCopyPeerId}
                       disabled={!peer?.id}
                     >
                       {setupCopied ? "Copied" : "Copy"}
                     </button>
                   </div>
-                  <div className="setup-hint">
+                  <div className="setup-hint text-[11px] text-win-text-muted">
                     Share this ID so a friend can connect to you.
                   </div>
                 </div>
               </div>
-              <div className="setup-actions">
+              <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
                 <button
                   type="button"
-                  className="setup-button ghost"
+                  className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
                   onClick={() => setSetupStep("deck")}
                 >
                   Back
                 </button>
                 <button
                   type="button"
-                  className="setup-button primary"
+                  className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                   onClick={() => setIsSetupComplete(true)}
                   disabled={deckNames.length === 0}
                 >
@@ -2101,7 +2099,7 @@ function Canvas() {
         onClearCounters={clearCounters}
       >
         <svg
-          className="canvas-surface"
+          className="canvas-surface bg-white shadow-none"
           ref={ref}
           onPointerDownCapture={onPointerDownCaptureCanvas}
           onPointerMoveCapture={onPointerMoveCaptureCanvas}
@@ -2115,7 +2113,7 @@ function Canvas() {
           <g style={{ transform }}>
             {isGridVisible && gridBounds && (
               <g
-                className="canvas-grid"
+                className="canvas-grid pointer-events-none"
                 transform={`translate(${gridBounds.startX} ${gridBounds.startY})`}
                 pointerEvents="none"
               >
@@ -2270,11 +2268,11 @@ function Canvas() {
 
       {handDrag && (
         <div
-          className="hand-drag-ghost"
+          className="hand-drag-ghost fixed z-(--z-ghost) pointer-events-none -translate-x-1/2 -translate-y-[70%] flex flex-col items-center"
           style={{ left: handDrag.clientX, top: handDrag.clientY }}
         >
           <img
-            className="hand-drag-ghost__card"
+            className="hand-drag-ghost__card w-[180px] h-auto -rotate-2 rounded-[6px] shadow-[0_12px_24px_rgba(0,0,0,0.35),0_0_0_2px_rgba(255,255,255,0.65)] bg-white"
             src={handDrag.faceDown ? CARD_BACK_URL : handDrag.src}
             alt="Dragging card"
           />
@@ -2283,7 +2281,7 @@ function Canvas() {
 
       {/* Zoomed card preview */}
       {isCommandPressed && hoveredCard && (
-        <div className="zoomed-card" style={{ pointerEvents: "none" }}>
+        <div className="zoomed-card fixed top-2.5 right-2.5 h-[700px] border-2 border-black bg-white z-(--z-zoomed-card) shadow-[0_4px_8px_rgba(0,0,0,0.2)]" style={{ pointerEvents: "none" }}>
           <img src={hoveredCard} alt={`Zoomed ${hoveredCard}`} />
         </div>
       )}
@@ -2291,7 +2289,7 @@ function Canvas() {
       {/* Help button */}
       <button
         onClick={() => setShowHelp(!showHelp)}
-        className="help-button"
+        className="help-button fixed top-3 left-[calc(12px+clamp(200px,24vw,280px)+8px)] z-(--z-help-button) h-7 w-7 rounded-full border border-[#666] text-base font-bold cursor-pointer inline-flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
         style={{
           background: showHelp ? "#444" : "#fff",
           color: showHelp ? "#fff" : "#666",
@@ -2303,15 +2301,15 @@ function Canvas() {
 
       {!isMobile && isShortcutDockOpen ? (
         <div
-          className="shortcut-dock"
+          className="shortcut-dock win-panel fixed z-(--z-shortcut-dock) w-[280px] max-h-[calc(100vh-240px)] p-2.5 text-xs overflow-y-auto overflow-x-hidden"
           onPointerDown={(event) => event.stopPropagation()}
           onWheel={(event) => event.stopPropagation()}
         >
-          <div className="shortcut-dock__header">
+          <div className="shortcut-dock__header win-titlebar -mx-2.5 -mt-2.5 mb-2 flex items-center justify-between px-2 py-1.5 text-xs font-bold">
             <span>Shortcuts</span>
             <button
               type="button"
-              className="shortcut-dock__close"
+              className="shortcut-dock__close win-bevel inline-flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-sm bg-win-button p-0 text-xs leading-none text-win-text hover:bg-win-hover active:win-bevel-pressed"
               onClick={() => setIsShortcutDockOpen(false)}
               aria-label="Hide shortcuts"
               title="Hide shortcuts"
@@ -2319,15 +2317,15 @@ function Canvas() {
               ×
             </button>
           </div>
-          <div className="shortcut-dock__content">
+          <div className="shortcut-dock__content flex flex-col gap-2.5">
             {KEYBOARD_SHORTCUT_SECTIONS.map((section) => (
-              <div key={section.title} className="shortcut-dock__section">
-                <div className="shortcut-dock__title">{section.title}</div>
-                <div className="shortcut-dock__items">
+              <div key={section.title} className="shortcut-dock__section flex flex-col gap-1">
+                <div className="shortcut-dock__title text-[11px] font-bold uppercase tracking-[0.03em]">{section.title}</div>
+                <div className="shortcut-dock__items ml-2 flex flex-col gap-0.5 leading-[1.4]">
                   {section.items.map((item) => (
                     <div
                       key={`${section.title}-${item}`}
-                      className="shortcut-dock__item"
+                      className="shortcut-dock__item text-[11px]"
                     >
                       - {item}
                     </div>
@@ -2340,7 +2338,7 @@ function Canvas() {
       ) : !isMobile ? (
         <button
           type="button"
-          className="shortcut-dock-toggle"
+          className="shortcut-dock-toggle win-bevel-raised fixed z-(--z-shortcut-dock) rounded bg-win-button px-2.5 py-1.5 text-xs font-bold cursor-pointer font-win text-win-text hover:bg-win-hover"
           onClick={() => setIsShortcutDockOpen(true)}
         >
           Shortcuts
@@ -2350,10 +2348,10 @@ function Canvas() {
       {/* Help panel */}
       {showHelp && (
         <div
-          className="help-dialog"
+          className="help-dialog win-panel fixed top-[60px] left-5 z-(--z-help-dialog) max-w-[360px] max-h-[calc(100vh-120px)] overflow-y-auto p-3.5 pt-1.5 text-[13px]"
           onWheel={(e) => e.stopPropagation()}
         >
-          <h3 className="help-dialog-title">
+          <h3 className="help-dialog-title win-titlebar -mx-3.5 -mt-1.5 mb-2.5 px-2.5 py-1.5 text-[13px]">
             Canvas Controls
           </h3>
 
@@ -2393,7 +2391,7 @@ function Canvas() {
             </div>
           </div>
 
-          <button onClick={() => setShowHelp(false)} className="help-dialog-close">
+          <button onClick={() => setShowHelp(false)} className="help-dialog-close win-button mt-3 w-full rounded-sm px-3 py-1.5 text-xs">
             Close
           </button>
         </div>

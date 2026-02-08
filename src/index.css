@@ -1,82 +1,157 @@
-.canvas-wrapper,
-svg,
-svg * {
-  touch-action: none;
+@import "tailwindcss";
+@import "./legacy.css";
+
+/* ── Win95 Theme ───────────────────────────────────── */
+@theme {
+  --color-win-panel: #e6e6e6;
+  --color-win-button: #dcdcdc;
+  --color-win-hover: #efefef;
+  --color-win-titlebar: #000080;
+  --color-win-border-dark: #5b5b5b;
+  --color-win-border-light: #ffffff;
+  --color-win-subtle: #cfcfcf;
+  --color-win-surface: #f3f3f3;
+  --color-win-bg-light: #f0f0f0;
+  --color-win-inset-shadow: #9a9a9a;
+  --color-win-inset-highlight: #f6f6f6;
+  --color-win-text: #000000;
+  --color-win-text-muted: #333333;
+  --color-win-text-subtle: #6b7280;
+  --color-win-danger: #7a1b1b;
+  --color-win-success: #0f5132;
+  --color-win-header-bg: #d0d0d0;
+  --color-win-border-mid: #b5b5b5;
+  --color-win-active-bg: #efe2b8;
+  --color-win-active-text: #3a2b12;
+
+  --font-win: "Tahoma", "Verdana", "Trebuchet MS", "Geneva", sans-serif;
+  --font-mono-win: "Menlo", "Monaco", monospace;
+
+  --z-selection-panel: 200;
+  --z-hand: 700;
+  --z-shortcut-dock: 800;
+  --z-help-button: 1001;
+  --z-help-dialog: 1200;
+  --z-card-search-zoom: 1200;
+  --z-context-menu: 1500;
+  --z-modal: 2000;
+  --z-counter-panel: 2000;
+  --z-ghost: 2200;
+  --z-zoomed-card: 2200;
+  --z-context-backdrop: 2500;
+  --z-tooltip: 3000;
+  --z-setup: 3000;
 }
 
-svg foreignObject,
-svg foreignObject * {
-  touch-action: auto;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  overscroll-behavior: none;
-}
-
-.canvas-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-svg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.clean {
-  background: linear-gradient(#e66465, #9198e5);
-  background-attachment: fixed;
-  animation-name: clean;
-  animation-duration: 5s;
-  font-family: "Comic Sans MS";
-  font-size: 1.6rem;
-  color: yellow;
-  overflow: auto;
-  animation-iteration-count: infinite;
-  animation-timing-function: linear;
-}
-
-@keyframes clean {
-  from {
-    filter: hue-rotate(0deg);
+/* ── Base resets ───────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
   }
-  to {
-    filter: hue-rotate(359deg);
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    overscroll-behavior: none;
   }
 }
-/*#root div {
-   
-}
-@keyframes clean {
-  from {filter: hue-rotate(0deg);}
-  to {filter: hue-rotate(359deg);}
-}*/
-.hand {
-  position: fixed;
-  bottom: 0;
-}
 
-/* .hand__card:hover {
-  zoom: 3;
-} */
+/* ── Reusable Win95 component classes ──────────────── */
+@layer components {
+  /* Beveled borders */
+  .win-bevel {
+    border: 2px solid #000000;
+    border-color: #ffffff #5b5b5b #5b5b5b #ffffff;
+  }
+
+  .win-bevel-raised {
+    border: 2px solid #000000;
+    border-color: #ffffff #5b5b5b #5b5b5b #ffffff;
+    box-shadow: inset 1px 1px 0 #f6f6f6, inset -1px -1px 0 #8a8a8a;
+  }
+
+  .win-bevel-pressed {
+    border-color: #5b5b5b #ffffff #ffffff #5b5b5b;
+    box-shadow: inset 1px 1px 0 #9a9a9a, inset -1px -1px 0 #ffffff;
+  }
+
+  .win-bevel-inset {
+    border: 2px solid #000000;
+    border-color: #5b5b5b #ffffff #ffffff #5b5b5b;
+  }
+
+  /* Title bar */
+  .win-titlebar {
+    background: #000080;
+    color: #ffffff;
+    border-bottom: 2px solid #000000;
+  }
+
+  /* Panel container */
+  .win-panel {
+    background: #e6e6e6;
+    border: 2px solid #000000;
+    border-color: #ffffff #5b5b5b #5b5b5b #ffffff;
+    border-radius: 4px;
+    box-shadow: none;
+    font-family: "Tahoma", "Verdana", "Trebuchet MS", "Geneva", sans-serif;
+    color: #000000;
+  }
+
+  /* Button */
+  .win-button {
+    background: #dcdcdc;
+    color: #000000;
+    border: 2px solid #000000;
+    border-color: #ffffff #5b5b5b #5b5b5b #ffffff;
+    border-radius: 2px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.1s ease, border-color 0.1s ease;
+  }
+
+  .win-button:hover {
+    background: #efefef;
+  }
+
+  .win-button:active {
+    border-color: #5b5b5b #ffffff #ffffff #5b5b5b;
+    box-shadow: inset 1px 1px 0 #9a9a9a, inset -1px -1px 0 #ffffff;
+  }
+
+  .win-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  /* Input (sunken border) */
+  .win-input {
+    border: 2px solid #000000;
+    border-color: #5b5b5b #ffffff #ffffff #5b5b5b;
+    border-radius: 2px;
+    background: #ffffff;
+    transition: background 0.1s ease, border-color 0.1s ease;
+  }
+
+  .win-input:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Inset shadow */
+  .win-inset-shadow {
+    box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #9a9a9a;
+  }
+}

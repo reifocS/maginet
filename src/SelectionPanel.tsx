@@ -5,7 +5,6 @@ import { usePeerStore } from "./hooks/usePeerConnection";
 import { useShapeStore } from "./hooks/useShapeStore";
 import { Datum } from "./hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "./types/canvas";
-import "./SelectionPanel.css";
 
 type TooltipFace = {
   name?: string;
@@ -88,9 +87,9 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
   const trimmedValue = value.trim();
 
   return (
-    <div className="peer-connect-modal">
+    <div className="peer-connect-modal flex flex-col gap-3">
       <form
-        className="peer-connection peer-connection--modal"
+        className="peer-connection peer-connection--modal grid grid-cols-[1fr_auto] gap-1"
         onSubmit={(event) => {
           event.preventDefault();
           if (!trimmedValue) return;
@@ -99,6 +98,7 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
       >
         <input
           type="text"
+          className="win-input px-2 py-1.5 text-[10px]"
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder="Friend's peer ID"
@@ -107,7 +107,7 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
           Connect
         </button>
       </form>
-      <div className="peer-connect-hint">
+      <div className="peer-connect-hint text-[11px] text-win-text-subtle">
         Share your ID and click connect to join a table.
       </div>
     </div>
@@ -170,9 +170,9 @@ const CardSearchModal = ({
     "";
 
   return (
-    <div className="card-search-panel card-search-panel--modal">
+    <div className="card-search-panel card-search-panel--modal flex flex-col gap-3 w-[min(980px,92vw)] max-h-[min(80vh,720px)]">
       <form
-        className="card-search-controls card-search-controls--modal"
+        className="card-search-controls card-search-controls--modal grid grid-cols-[1fr_auto] gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           if (!hasQuery || !filteredCards.length) {
@@ -187,6 +187,7 @@ const CardSearchModal = ({
             setSelectedShapeIds([]);
           }}
           type="search"
+          className="win-input flex-1 w-full px-2 py-1.5 text-[10px]"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search card name..."
@@ -201,9 +202,9 @@ const CardSearchModal = ({
           Add
         </button>
       </form>
-      <div className="card-search-content card-search-content--modal">
+      <div className="card-search-content card-search-content--modal flex flex-1 flex-col gap-2 max-h-[min(60vh,520px)] overflow-y-auto overflow-x-visible">
         <div
-          className="card-search-results card-search-results--modal"
+          className="card-search-results card-search-results--modal grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2 overflow-visible"
           onMouseLeave={() => setPreviewCard(null)}
         >
           {visibleCards.map((card) => {
@@ -219,7 +220,7 @@ const CardSearchModal = ({
               <button
                 key={card.id}
                 type="button"
-                className="card-search-item"
+                className="card-search-item win-bevel flex flex-col gap-1 rounded bg-win-surface p-1 text-center cursor-pointer transition-[transform,box-shadow] duration-150 relative overflow-visible hover:bg-white focus-visible:bg-white focus-visible:outline-none"
                 onClick={() => addCardToHand(card)}
                 onMouseEnter={(event) => {
                   setPreviewCard(card);
@@ -231,37 +232,37 @@ const CardSearchModal = ({
                   positionCardTooltip(event);
                 }}
               >
-                <img src={image} alt={card.name} />
-                <span>{card.name}</span>
+                <img className="w-full h-auto rounded-[6px] object-cover shadow-[0_2px_6px_rgba(0,0,0,0.12)]" src={image} alt={card.name} />
+                <span className="text-[9px] text-[#374151] leading-[1.2]">{card.name}</span>
                 {showTooltip && (
-                  <div className="card-search-tooltip" role="tooltip">
+                  <div className="card-search-tooltip fixed left-0 top-0 z-(--z-tooltip) w-[min(260px,60vw)] rounded-sm border border-black bg-[#ffffe1] px-3 py-2.5 text-left text-[10px] leading-[1.35] text-win-text opacity-0 pointer-events-none -translate-y-1 transition-[opacity,transform] duration-150 shadow-none" role="tooltip">
                     {tooltipFaces.map((face, index) => (
                       <div
                         key={`${card.id}-face-${index}`}
                         className="card-search-tooltip__face"
                       >
-                        <div className="card-search-tooltip__header">
-                          <span className="card-search-tooltip__name">
+                        <div className="card-search-tooltip__header flex justify-between gap-2 font-bold mb-1">
+                          <span className="card-search-tooltip__name text-[11px]">
                             {face.name}
                           </span>
                           {face.manaCost && (
-                            <span className="card-search-tooltip__mana">
+                            <span className="card-search-tooltip__mana text-[10px] text-win-text-muted whitespace-nowrap">
                               {face.manaCost}
                             </span>
                           )}
                         </div>
                         {face.typeLine && (
-                          <div className="card-search-tooltip__type">
+                          <div className="card-search-tooltip__type font-semibold text-win-text-muted mb-1">
                             {face.typeLine}
                           </div>
                         )}
                         {face.oracleText && (
-                          <div className="card-search-tooltip__text">
+                          <div className="card-search-tooltip__text whitespace-pre-line text-win-text">
                             {face.oracleText}
                           </div>
                         )}
                         {face.power && face.toughness && (
-                          <div className="card-search-tooltip__pt">
+                          <div className="card-search-tooltip__pt mt-1 font-semibold text-win-text-muted">
                             {face.power}/{face.toughness}
                           </div>
                         )}
@@ -273,13 +274,13 @@ const CardSearchModal = ({
             );
           })}
           {visibleCards.length === 0 && (
-            <div className="card-search-empty">No matches.</div>
+            <div className="card-search-empty text-[10px] text-win-text-subtle p-1.5">No matches.</div>
           )}
         </div>
       </div>
       {isCommandPressed && previewImage && (
-        <div className="card-search-zoom">
-          <img src={previewImage} alt={previewCard?.name ?? "Card preview"} />
+        <div className="card-search-zoom fixed top-3 right-3 z-(--z-card-search-zoom) h-[420px] rounded-xl border border-black/20 bg-white p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.25)] pointer-events-none">
+          <img className="h-full w-auto rounded-lg block" src={previewImage} alt={previewCard?.name ?? "Card preview"} />
         </div>
       )}
     </div>
@@ -416,14 +417,14 @@ export function SelectionPanel({
   };
 
   return (
-    <div className="selection-panel selection-panel--integrated">
-      <div className="selection-panel__group selection-panel__group--top-left">
+    <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
+      <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4">
         <button
           className="selection-panel__pill"
           onClick={() =>
             showModal("Select deck", (closeModal) => (
               <Form
-                className="modal-form"
+                className="modal-form flex flex-col gap-2.5 rounded-sm bg-[#f5f5f5] p-3 win-inset-shadow"
                 onSubmit={() => {
                   closeModal();
                 }}
@@ -431,12 +432,13 @@ export function SelectionPanel({
                 <textarea
                   id="deck"
                   name="deck"
+                  className="win-input w-full h-[100px] p-2.5 rounded-sm resize-none font-[Courier_New,Lucida_Console,monospace]"
                   defaultValue={d ?? ""}
                   placeholder={`1 Legion Angel
 3 Wedding Announcement
 ...`}
                 />
-                <button className="modal-button" type="submit">
+                <button className="modal-button win-button self-end px-5 py-2.5" type="submit">
                   Submit
                 </button>
               </Form>
@@ -450,10 +452,10 @@ export function SelectionPanel({
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--top-right">
-        <div className="peer-id-inline">
-          <span className="peer-id-inline__label">id:</span>
-          <span className="peer-id-inline__value">
+      <div className="selection-panel__group selection-panel__group--top-right absolute flex items-center gap-2.5 pointer-events-auto top-4 right-4 justify-end">
+        <div className="peer-id-inline flex items-center gap-1.5 text-xs font-semibold text-win-text">
+          <span className="peer-id-inline__label lowercase font-semibold">id:</span>
+          <span className="peer-id-inline__value font-mono-win text-[11px] max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap">
             {peer?.id ?? "waiting..."}
           </span>
         </div>
@@ -466,13 +468,13 @@ export function SelectionPanel({
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--left">
+      <div className="selection-panel__group selection-panel__group--left absolute flex flex-col items-start gap-3.5 pointer-events-auto top-[130px] left-4">
         <button className="selection-panel__pill danger" onClick={onMulligan}>
           Mulligan
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--left-deck">
+      <div className="selection-panel__group selection-panel__group--left-deck absolute flex flex-col items-start gap-2.5 pointer-events-auto left-4 bottom-[120px]">
         <button className="selection-panel__pill" onClick={onShuffleDeck}>
           Shuffle
         </button>
@@ -485,18 +487,18 @@ export function SelectionPanel({
             Search
           </button>
         )}
-        <button className="deck-draw-button" onClick={onDrawCard}>
-          <span className="deck-count">{deckCount}</span>
-          <span className="deck-label">
+        <button className="deck-draw-button win-bevel flex h-[150px] w-[120px] flex-col items-center justify-center gap-1.5 rounded-lg bg-win-hover font-bold text-win-text shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#9a9a9a] transition-[background,border-color] duration-100 hover:bg-[#f5f5f5] active:win-bevel-pressed" onClick={onDrawCard}>
+          <span className="deck-count text-base text-win-text">{deckCount}</span>
+          <span className="deck-label inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.04em] text-win-text">
             Draw
-            <span className="deck-shortcut">D</span>
+            <span className="deck-shortcut win-bevel inline-flex min-w-[18px] items-center justify-center rounded bg-[#e8e0cf] px-[5px] py-px text-[10px] tracking-[0.02em] text-win-text shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#9a9a9a]">D</span>
           </span>
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--right">
-          <div className="shape-type-options shape-type-options--vertical">
-          <div className="shape-type-option" data-tooltip="Select / Move">
+      <div className="selection-panel__group selection-panel__group--right absolute flex flex-col items-center gap-3 pointer-events-auto top-[140px] right-4">
+          <div className="shape-type-options shape-type-options--vertical flex flex-col items-center gap-2.5">
+          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Select / Move">
             <input
               type="radio"
               id="select"
@@ -505,12 +507,11 @@ export function SelectionPanel({
               checked={mode === "select"}
               onChange={() => setMode("select")}
             />
-            <label htmlFor="select">
-              <span className="tool-icon">&gt;</span>
-              <span className="tool-label">Select</span>
+            <label htmlFor="select" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+              <span className="tool-icon text-[18px] font-semibold leading-none">&gt;</span>
             </label>
           </div>
-          <div className="shape-type-option" data-tooltip="Text">
+          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Text">
             <input
               type="radio"
               id="create"
@@ -522,12 +523,11 @@ export function SelectionPanel({
                 setShapeType("text");
               }}
             />
-            <label htmlFor="create">
-              <span className="tool-icon">T</span>
-              <span className="tool-label">Text</span>
+            <label htmlFor="create" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+              <span className="tool-icon text-[18px] font-semibold leading-none">T</span>
             </label>
           </div>
-          <div className="shape-type-option" data-tooltip="Token">
+          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Token">
             <input
               type="radio"
               id="add"
@@ -538,12 +538,11 @@ export function SelectionPanel({
                 setShapeType("token");
               }}
             />
-            <label htmlFor="add">
-              <span className="tool-icon">O</span>
-              <span className="tool-label">Token</span>
+            <label htmlFor="add" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+              <span className="tool-icon text-[18px] font-semibold leading-none">O</span>
             </label>
           </div>
-          <div className="shape-type-option" data-tooltip="Rectangle">
+          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Rectangle">
             <input
               type="radio"
               id="rectangle"
@@ -554,16 +553,15 @@ export function SelectionPanel({
                 setShapeType("rectangle");
               }}
             />
-            <label htmlFor="rectangle">
-              <span className="tool-icon">[]</span>
-              <span className="tool-label">Rect</span>
+            <label htmlFor="rectangle" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+              <span className="tool-icon text-[18px] font-semibold leading-none">[]</span>
             </label>
           </div>
         </div>
-        <div className="selection-panel__grid-controls">
+        <div className="selection-panel__grid-controls flex flex-col items-center gap-1.5">
           <button
             type="button"
-            className={`selection-panel__pill ${isGridVisible ? "is-active" : ""}`}
+            className={`selection-panel__pill min-w-[56px] text-center px-2 py-1.5 ${isGridVisible ? "is-active" : ""}`}
             onClick={onToggleGrid}
             aria-pressed={isGridVisible}
             title="Toggle grid"
@@ -572,7 +570,7 @@ export function SelectionPanel({
           </button>
           <button
             type="button"
-            className={`selection-panel__pill ${isSnapEnabled ? "is-active" : ""}`}
+            className={`selection-panel__pill min-w-[56px] text-center px-2 py-1.5 ${isSnapEnabled ? "is-active" : ""}`}
             onClick={onToggleSnap}
             aria-pressed={isSnapEnabled}
             title="Toggle snapping"

@@ -1,6 +1,5 @@
 import { Toaster } from "react-hot-toast";
 import Canvas from "./Canvas";
-import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();

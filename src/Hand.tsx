@@ -46,7 +46,7 @@ export default function Hand({
   );
 
   const { contextMenu, onContextMenu } = useContextMenu(
-    <div className="custom-context-menu">
+    <div className="custom-context-menu flex flex-col gap-0.5 py-1.5">
       <ContextMenuCategory>Hand</ContextMenuCategory>
       <ContextMenuItem>
         <button
@@ -94,7 +94,7 @@ export default function Hand({
   );
 
   return (
-    <div className={`hand${draggingCardId ? " hand--dragging" : ""}`}>
+    <div className={`hand fixed bottom-0 z-(--z-hand) flex w-full gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain justify-center p-2.5 [-webkit-overflow-scrolling:touch]${draggingCardId ? " hand--dragging cursor-grabbing !overflow-y-visible" : ""}`}>
       {cards.map((card) => {
         const isDragging = draggingCardId === card.id;
         return (
@@ -102,7 +102,7 @@ export default function Hand({
             key={card.id}
             src={card.src[0]}
             alt={`Card ${card.id}`}
-            className={`hand-card${selectedCardId === card.id ? " selected" : ""}${isDragging ? " is-dragging" : ""}`}
+            className={`hand-card w-[100px] h-auto cursor-grab transition-transform duration-200 ease-in-out hover:scale-110${selectedCardId === card.id ? " selected outline-2 outline-[rgba(59,130,246,0.9)] outline-offset-2 scale-105" : ""}${isDragging ? " is-dragging !opacity-100 -translate-y-1.5 scale-105 outline-2 outline-dashed outline-[rgba(58,43,18,0.85)] outline-offset-2 shadow-[0_4px_10px_rgba(0,0,0,0.25)] !cursor-grabbing" : ""}`}
             draggable={false}
             onPointerDown={(e) => {
               e.stopPropagation();
