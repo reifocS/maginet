@@ -70,4 +70,28 @@ export function intersect(rect1: DOMRect, rect2: DOMRect): boolean {
   if (rect1.right < rect2.left || rect2.right < rect1.left) return false;
   if (rect1.bottom < rect2.top || rect2.bottom < rect1.top) return false;
   return true;
-} 
+}
+
+export type ShortcutSection = {
+  title: string;
+  items: string[];
+};
+
+export type DragCardMeta = {
+  id: string;
+  src: string;
+  faceDown: boolean;
+};
+
+export type HandDragState = DragCardMeta & {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  target: HTMLElement | null;
+};
+
+export type DragPreview = DragCardMeta & {
+  point: [number, number];
+};
+
+export type RandomEventType = "coin" | "d6" | "d20" | "starter";

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Shape } from "../types/canvas";
+import { Card, Counter, Shape, rotateShape, flipShape } from "../types/canvas";
 import { generateId } from "../utils/math";
 import vec from "../utils/vec";
 
@@ -38,6 +38,18 @@ interface ShapeStore {
   updateShapeInCreation: (point: number[]) => void;
   flipSelectedShapes: () => void;
   rotateSelectedShapes: (angle: number) => void;
+  engageSelected: () => void;
+  tapShape: (id: string) => void;
+  untapAll: () => void;
+  copySelected: () => void;
+  updateCountersOnSelected: (counters: Counter[]) => void;
+  clearCountersOnSelected: () => void;
+  changeColorOnSelected: (color: string) => void;
+  sendSelectedToBack: () => void;
+  sendSelectedToFront: () => void;
+  increaseSrcIndexOnSelected: () => void;
+  removeSelectedImages: () => Card[];
+  getSelectedImages: () => Card[];
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
@@ -138,7 +150,7 @@ export const useShapeStore = create<ShapeStore>((set, get) => ({
     set((state) => ({
       shapes: state.shapes.map((shape) =>
         state.selectedShapeIds.includes(shape.id)
-          ? { ...shape, isFlipped: !shape.isFlipped }
+          ? flipShape(shape)
           : shape
       ),
     }));
@@ -154,6 +166,154 @@ export const useShapeStore = create<ShapeStore>((set, get) => ({
           : shape
       ),
     }));
+  },
+  engageSelected: () => {
+    const { selectedShapeIds } = get();
+    if (selectedShapeIds.length === 0) return;
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        state.selectedShapeIds.includes(shape.id) &&
+          (shape.type === "image" || shape.type === "rectangle")
+          ? shape.rotation !== 0
+            ? rotateShape(shape, -90)
+            : rotateShape(shape, 90)
+          : shape
+      ),
+    }));
+  },
+  tapShape: (id) => {
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) => {
+        if (shape.id === id && shape.type === "image") {
+          const currentRotation = shape.rotation || 0;
+          return { ...shape, rotation: currentRotation === 90 ? 0 : 90 };
+        }
+        return shape;
+      }),
+    }));
+  },
+  untapAll: () => {
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        (shape.type === "image" || shape.type === "rectangle") && shape.rotation
+          ? { ...shape, rotation: 0 }
+          : shape
+      ),
+    }));
+  },
+  copySelected: () => {
+    const { shapes, selectedShapeIds } = get();
+    if (selectedShapeIds.length === 0) return;
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    const copies = shapes
+      .filter((shape) => selectedShapeIds.includes(shape.id))
+      .map((shape) => ({
+        ...shape,
+        id: generateId(),
+        point: [shape.point[0] + 100, shape.point[1] + 100],
+      }));
+    set((state) => ({ shapes: [...state.shapes, ...copies] }));
+  },
+  updateCountersOnSelected: (counters) => {
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        state.selectedShapeIds.includes(shape.id) && shape.type === "image"
+          ? { ...shape, counters }
+          : shape
+      ),
+    }));
+  },
+  clearCountersOnSelected: () => {
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        state.selectedShapeIds.includes(shape.id) && shape.type === "image"
+          ? { ...shape, counters: [] }
+          : shape
+      ),
+    }));
+  },
+  changeColorOnSelected: (color) => {
+    const { selectedShapeIds } = get();
+    if (selectedShapeIds.length !== 1) return;
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        state.selectedShapeIds.includes(shape.id) ? { ...shape, color } : shape
+      ),
+    }));
+  },
+  sendSelectedToBack: () => {
+    const { shapes, selectedShapeIds } = get();
+    if (selectedShapeIds.length === 0) return;
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    const selected = shapes.filter((s) => selectedShapeIds.includes(s.id));
+    const rest = shapes.filter((s) => !selectedShapeIds.includes(s.id));
+    set({ shapes: [...selected, ...rest], selectedShapeIds: [] });
+  },
+  sendSelectedToFront: () => {
+    const { shapes, selectedShapeIds } = get();
+    if (selectedShapeIds.length === 0) return;
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    const selected = shapes.filter((s) => selectedShapeIds.includes(s.id));
+    const rest = shapes.filter((s) => !selectedShapeIds.includes(s.id));
+    set({ shapes: [...rest, ...selected], selectedShapeIds: [] });
+  },
+  increaseSrcIndexOnSelected: () => {
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.map((shape) =>
+        state.selectedShapeIds.includes(shape.id) && shape.type === "image"
+          ? { ...shape, srcIndex: (shape.srcIndex + 1) % (shape.src?.length ?? 1) }
+          : shape
+      ),
+    }));
+  },
+  removeSelectedImages: () => {
+    const { shapes, selectedShapeIds } = get();
+    const removed: Card[] = shapes
+      .filter((s) => selectedShapeIds.includes(s.id) && s.type === "image")
+      .map((s) => ({ id: s.id, src: s.src as string[], srcIndex: s.srcIndex }));
+    if (!get().shouldSkipHistory()) {
+      get().pushHistory();
+    }
+    set((state) => ({
+      shapes: state.shapes.filter(
+        (s) => !(s.type === "image" && selectedShapeIds.includes(s.id))
+      ),
+      selectedShapeIds: [],
+    }));
+    return removed;
+  },
+  getSelectedImages: () => {
+    const { shapes, selectedShapeIds } = get();
+    return shapes
+      .filter((s) => selectedShapeIds.includes(s.id) && s.type === "image")
+      .map((s) => ({ id: s.id, src: s.src as string[], srcIndex: s.srcIndex }));
   },
   pushHistory: () => {
     // Skip if in the middle of an operation

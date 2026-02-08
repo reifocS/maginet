@@ -115,6 +115,7 @@ export default function EditableText({
           border: "none",
           padding: "4px",
           whiteSpace: "pre",
+          lineHeight: "normal",
           resize: "none",
           minHeight: 1,
           minWidth: 1,

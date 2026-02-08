@@ -32,6 +32,7 @@ const TextShape = ({
           border: "none",
           padding: "4px",
           whiteSpace: "pre",
+          lineHeight: "normal",
           minHeight: 1,
           minWidth: 1,
           outline: 0,
