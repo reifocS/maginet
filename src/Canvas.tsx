@@ -140,9 +140,13 @@ function Canvas() {
 
   // Touch gestures
   const {
-    touchPanRef,
-    touchPlaceRef,
-    touchGestureRef,
+    isTouchGestureActive,
+    getTouchPan,
+    setTouchPan,
+    markTouchPanMoved,
+    getTouchPlace,
+    setTouchPlace,
+    markTouchPlaceMoved,
     onPointerDownCapture: onPointerDownCaptureCanvas,
     onPointerMoveCapture: onPointerMoveCaptureCanvas,
     onPointerUpCapture: onPointerUpCaptureCanvas,
@@ -154,7 +158,7 @@ function Canvas() {
     setLastPanPosition,
     setDragVector: () => setDragVector(null),
     setIsDragging,
-    rDragging,
+    clearDragging: () => { rDragging.current = null; },
   });
 
   // URL parameters
@@ -392,26 +396,26 @@ function Canvas() {
     const snappedPoint = snapPointToGrid(point);
 
     if (e.pointerType === "touch") {
-      if (touchGestureRef.current.isActive) {
+      if (isTouchGestureActive()) {
         return;
       }
       if (selectedHandCardId) {
-        touchPlaceRef.current = {
+        setTouchPlace({
           pointerId: e.pointerId,
           origin: { x: e.clientX, y: e.clientY },
           hasMoved: false,
-        };
+        });
         e.currentTarget.setPointerCapture(e.pointerId);
         return;
       }
       if (mode === "select" && !shapeInCreation) {
         setIsPanning(true);
         setLastPanPosition({ x: e.clientX, y: e.clientY });
-        touchPanRef.current = {
+        setTouchPan({
           pointerId: e.pointerId,
           origin: { x: e.clientX, y: e.clientY },
           hasMoved: false,
-        };
+        });
         e.currentTarget.setPointerCapture(e.pointerId);
         return;
       }
@@ -462,13 +466,14 @@ function Canvas() {
   function onPointerMoveCanvas(e: React.PointerEvent<SVGElement>) {
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
 
-    if (touchPlaceRef.current?.pointerId === e.pointerId && !touchPlaceRef.current.hasMoved) {
+    const touchPlace = getTouchPlace();
+    if (touchPlace?.pointerId === e.pointerId && !touchPlace.hasMoved) {
       const totalMove = Math.hypot(
-        e.clientX - touchPlaceRef.current.origin.x,
-        e.clientY - touchPlaceRef.current.origin.y
+        e.clientX - touchPlace.origin.x,
+        e.clientY - touchPlace.origin.y
       );
       if (totalMove > 8) {
-        touchPlaceRef.current.hasMoved = true;
+        markTouchPlaceMoved();
         setIsPanning(true);
         setLastPanPosition({ x: e.clientX, y: e.clientY });
       }
@@ -481,13 +486,14 @@ function Canvas() {
       const dy = e.clientY - lastPanPosition.y;
       applyCameraImmediate(panCamera(cameraRef.current, -dx, -dy));
       setLastPanPosition({ x: e.clientX, y: e.clientY });
-      if (touchPanRef.current?.pointerId === e.pointerId) {
+      const touchPan = getTouchPan();
+      if (touchPan?.pointerId === e.pointerId) {
         const totalMove = Math.hypot(
-          e.clientX - touchPanRef.current.origin.x,
-          e.clientY - touchPanRef.current.origin.y
+          e.clientX - touchPan.origin.x,
+          e.clientY - touchPan.origin.y
         );
         if (totalMove > 6) {
-          touchPanRef.current.hasMoved = true;
+          markTouchPanMoved();
         }
       }
       return;
@@ -539,18 +545,18 @@ function Canvas() {
       return { ...shape, point: [nextX, nextY], size: [Math.abs(w), Math.abs(h)] };
     };
 
-    if (touchPanRef.current?.pointerId === e.pointerId) {
-      const { hasMoved } = touchPanRef.current;
-      touchPanRef.current = null;
-      if (!hasMoved && mode === "select") {
+    const touchPan = getTouchPan();
+    if (touchPan?.pointerId === e.pointerId) {
+      setTouchPan(null);
+      if (!touchPan.hasMoved && mode === "select") {
         setSelectedShapeIds([]);
       }
     }
 
-    if (touchPlaceRef.current?.pointerId === e.pointerId) {
-      const { hasMoved } = touchPlaceRef.current;
-      touchPlaceRef.current = null;
-      if (!hasMoved && selectedHandCardId) {
+    const touchPlace = getTouchPlace();
+    if (touchPlace?.pointerId === e.pointerId) {
+      setTouchPlace(null);
+      if (!touchPlace.hasMoved && selectedHandCardId) {
         playCardAt(selectedHandCardId, e.clientX, e.clientY);
         setSelectedHandCardId(null);
         e.currentTarget.releasePointerCapture(e.pointerId);

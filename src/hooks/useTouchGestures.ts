@@ -4,6 +4,12 @@ import type { Camera } from "../types/canvas";
 import { getCameraZoom, screenToWorld } from "../utils/canvas_utils";
 import { useShapeStore } from "./useShapeStore";
 
+export interface TouchInteraction {
+  pointerId: number;
+  origin: { x: number; y: number };
+  hasMoved: boolean;
+}
+
 interface UseTouchGesturesOptions {
   svgRef: React.RefObject<SVGSVGElement | null>;
   cameraRef: React.RefObject<Camera>;
@@ -12,7 +18,7 @@ interface UseTouchGesturesOptions {
   setLastPanPosition: (v: { x: number; y: number } | null) => void;
   setDragVector: (v: null) => void;
   setIsDragging: (v: boolean) => void;
-  rDragging: React.RefObject<{ shape: unknown; origin: number[] } | null>;
+  clearDragging: () => void;
 }
 
 export function useTouchGestures({
@@ -23,7 +29,7 @@ export function useTouchGestures({
   setLastPanPosition,
   setDragVector,
   setIsDragging,
-  rDragging,
+  clearDragging,
 }: UseTouchGesturesOptions) {
   const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
   const touchGestureRef = useRef<{
@@ -39,16 +45,8 @@ export function useTouchGestures({
     startCamera: { x: 0, y: 0, z: 1 },
     startWorldPoint: [0, 0],
   });
-  const touchPanRef = useRef<{
-    pointerId: number;
-    origin: { x: number; y: number };
-    hasMoved: boolean;
-  } | null>(null);
-  const touchPlaceRef = useRef<{
-    pointerId: number;
-    origin: { x: number; y: number };
-    hasMoved: boolean;
-  } | null>(null);
+  const touchPanRef = useRef<TouchInteraction | null>(null);
+  const touchPlaceRef = useRef<TouchInteraction | null>(null);
 
   const getTouchGestureStats = () => {
     const points = Array.from(touchPointersRef.current.values());
@@ -76,7 +74,7 @@ export function useTouchGestures({
     setLastPanPosition(null);
     setDragVector(null);
     setIsDragging(false);
-    rDragging.current = null;
+    clearDragging();
     useShapeStore.setState({ isDraggingShape: false });
   };
 
@@ -142,10 +140,26 @@ export function useTouchGestures({
     }
   };
 
+  // Accessors for touch state — lets callers read/write without
+  // directly mutating hook-owned refs (satisfies React Compiler).
+  const getTouchPan = () => touchPanRef.current;
+  const setTouchPan = (v: TouchInteraction | null) => { touchPanRef.current = v; };
+  const markTouchPanMoved = () => { if (touchPanRef.current) touchPanRef.current.hasMoved = true; };
+
+  const getTouchPlace = () => touchPlaceRef.current;
+  const setTouchPlace = (v: TouchInteraction | null) => { touchPlaceRef.current = v; };
+  const markTouchPlaceMoved = () => { if (touchPlaceRef.current) touchPlaceRef.current.hasMoved = true; };
+
+  const isTouchGestureActive = () => touchGestureRef.current.isActive;
+
   return {
-    touchPanRef,
-    touchPlaceRef,
-    touchGestureRef,
+    isTouchGestureActive,
+    getTouchPan,
+    setTouchPan,
+    markTouchPanMoved,
+    getTouchPlace,
+    setTouchPlace,
+    markTouchPlaceMoved,
     onPointerDownCapture,
     onPointerMoveCapture,
     onPointerUpCapture,
