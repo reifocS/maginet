@@ -4,6 +4,8 @@ import { processRawText } from "../hooks/useCards";
 import { DEFAULT_DECK } from "../DEFAULT_DECK";
 import type Peer from "peerjs";
 import type { DataConnection } from "peerjs";
+import Button from "./ui/Button";
+import Input, { Textarea } from "./ui/Input";
 
 interface SetupScreenProps {
   deckParam: string;
@@ -103,9 +105,9 @@ export default function SetupScreen({
             <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted" htmlFor="setup-deck">
               Deck list
             </label>
-            <textarea
+            <Textarea
               id="setup-deck"
-              className="setup-textarea win-input w-full p-3 text-[13px] leading-[1.4] font-[inherit] min-h-[180px] resize-y shadow-none"
+              className="setup-textarea w-full p-3 text-[13px] leading-[1.4] font-[inherit] min-h-[180px] resize-y shadow-none"
               value={deckDraft}
               onChange={(event) => {
                 setDeckDraft(event.target.value);
@@ -126,21 +128,21 @@ export default function SetupScreen({
               {setupError && <span className="setup-error text-xs text-win-danger">{setupError}</span>}
             </div>
             <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
-              <button
+              <Button
                 type="button"
-                className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
                 onClick={handleUseSampleDeck}
               >
                 Use sample deck
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                 onClick={handleDeckContinue}
                 disabled={deckDraftCount === 0}
               >
                 Continue
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -160,22 +162,22 @@ export default function SetupScreen({
                   Friend&apos;s peer ID
                 </label>
                 <div className="setup-input-row flex gap-2.5 items-center">
-                  <input
+                  <Input
                     id="setup-peer-id"
-                    className="setup-input win-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
+                    className="setup-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
                     type="text"
                     value={setupPeerId}
                     onChange={(event) => setSetupPeerId(event.target.value)}
                     placeholder="Enter peer ID"
                   />
-                  <button
+                  <Button
                     type="button"
-                    className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                    className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                     onClick={() => connectToPeer(setupPeerId.trim())}
                     disabled={!setupPeerId.trim()}
                   >
                     Connect
-                  </button>
+                  </Button>
                 </div>
                 {connections.size > 0 && (
                   <div className="setup-status text-xs text-win-text-muted">
@@ -188,20 +190,20 @@ export default function SetupScreen({
               <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5">
                 <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted">Your ID</label>
                 <div className="setup-input-row flex gap-2.5 items-center">
-                  <input
-                    className="setup-input win-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
+                  <Input
+                    className="setup-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
                     type="text"
                     readOnly
                     value={peer?.id ?? "Generating ID..."}
                   />
-                  <button
+                  <Button
                     type="button"
-                    className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                    className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
                     onClick={handleCopyPeerId}
                     disabled={!peer?.id}
                   >
                     {setupCopied ? "Copied" : "Copy"}
-                  </button>
+                  </Button>
                 </div>
                 <div className="setup-hint text-[11px] text-win-text-muted">
                   Share this ID so a friend can connect to you.
@@ -209,21 +211,21 @@ export default function SetupScreen({
               </div>
             </div>
             <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
-              <button
+              <Button
                 type="button"
-                className="setup-button ghost win-button rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
                 onClick={() => setSetupStep("deck")}
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="setup-button primary win-button rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
                 onClick={onSetupComplete}
                 disabled={deckNames.length === 0}
               >
                 Enter table
-              </button>
+              </Button>
             </div>
           </div>
         )}

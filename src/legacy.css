@@ -200,21 +200,26 @@ body.modal-open .Modal__overlay {
   background: rgba(0, 0, 0, 0.3);
 }
 
-.help-dialog::-webkit-scrollbar {
+.help-dialog::-webkit-scrollbar,
+.help-dialog-content::-webkit-scrollbar {
   width: 8px;
 }
-.help-dialog::-webkit-scrollbar-track {
+.help-dialog::-webkit-scrollbar-track,
+.help-dialog-content::-webkit-scrollbar-track {
   background: #dcdcdc;
   border-radius: 4px;
 }
-.help-dialog::-webkit-scrollbar-thumb {
+.help-dialog::-webkit-scrollbar-thumb,
+.help-dialog-content::-webkit-scrollbar-thumb {
   background: #9a9a9a;
   border-radius: 4px;
 }
-.help-dialog::-webkit-scrollbar-thumb:hover {
+.help-dialog::-webkit-scrollbar-thumb:hover,
+.help-dialog-content::-webkit-scrollbar-thumb:hover {
   background: #7a7a7a;
 }
-.help-dialog {
+.help-dialog,
+.help-dialog-content {
   scrollbar-width: thin;
   scrollbar-color: #9a9a9a #dcdcdc;
 }

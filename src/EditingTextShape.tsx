@@ -1,6 +1,7 @@
 import React from "react";
 import { getBounds } from "./utils/canvas_utils";
 import { Shape } from "./types/canvas";
+import { Textarea } from "./components/ui/Input";
 
 interface EditableTextProps {
   editingTextShape?: Shape;
@@ -100,7 +101,8 @@ export default function EditableText({
 
   return (
     <foreignObject x={x} y={y} height={bounds.height} width={bounds.width}>
-      <textarea
+      <Textarea
+        variant="unstyled"
         ref={inputRef}
         value={editingText.text ?? ""}
         onChange={onTextChange}

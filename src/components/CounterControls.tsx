@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Counter } from "../types/canvas";
+import Button from "./ui/Button";
+import Input, { Select } from "./ui/Input";
 
 interface CounterControlsProps {
   currentCounters: Counter[];
@@ -64,12 +66,13 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
     <div className="counter-controls-panel win-panel fixed top-1/2 left-1/2 z-(--z-counter-panel) min-w-[320px] max-w-[400px] -translate-x-1/2 -translate-y-1/2 p-3.5">
       <div className="counter-controls-header win-titlebar -mx-3.5 -mt-3.5 mb-3 flex items-center justify-between px-2.5 py-1.5">
         <h4 className="m-0 text-[13px] text-white">Manage Counters</h4>
-        <button
+        <Button
+          variant="bevel"
           onClick={onClose}
-          className="win-bevel h-5 w-5 cursor-pointer bg-win-button p-0 text-base leading-none text-win-text hover:bg-win-hover"
+          className="h-5 w-5 p-0 text-base leading-none text-win-text hover:bg-win-hover"
         >
           ×
-        </button>
+        </Button>
       </div>
 
       {currentCounters.length > 0 && (
@@ -85,61 +88,62 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
               {isPTCounter(counter) ? (
                 <div className="flex items-center gap-1">
                   <div className="flex items-center gap-1.5">
-                    <button
-                      className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
+                    <Button
+                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) - 1 })}
                     >
                       −
-                    </button>
+                    </Button>
                     <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.power || 0}</span>
-                    <button
-                      className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
+                    <Button
+                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) + 1 })}
                     >
                       +
-                    </button>
+                    </Button>
                   </div>
                   <span className="px-0.5 text-sm font-bold text-win-text-muted">/</span>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
+                    <Button
+                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) - 1 })}
                     >
                       −
-                    </button>
+                    </Button>
                     <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.toughness || 0}</span>
-                    <button
-                      className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
+                    <Button
+                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) + 1 })}
                     >
                       +
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <button
-                    className="counter-btn minus win-button h-7 w-7 p-0 text-base leading-none"
+                  <Button
+                    className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) - 1 })}
                   >
                     −
-                  </button>
+                  </Button>
                   <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.value || 0}</span>
-                  <button
-                    className="counter-btn plus win-button h-7 w-7 p-0 text-base leading-none"
+                  <Button
+                    className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) + 1 })}
                   >
                     +
-                  </button>
+                  </Button>
                 </div>
               )}
 
-              <button
-                className="win-bevel h-6 w-6 cursor-pointer bg-win-button p-0 text-xl leading-none text-win-danger hover:bg-win-hover"
+              <Button
+                variant="bevel"
+                className="h-6 w-6 p-0 text-xl leading-none text-win-danger hover:bg-win-hover"
                 onClick={() => deleteCounter(index)}
               >
                 ×
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -148,8 +152,8 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
       <div className="new-counter-section mt-3">
         <h5 className="mb-2 text-[13px] font-normal text-win-text-muted">Add Counter</h5>
         <div className="mb-2 flex gap-2">
-          <select
-            className="win-input flex-1 cursor-pointer p-2 text-[13px] text-win-text"
+          <Select
+            className="flex-1 cursor-pointer p-2 text-[13px] text-win-text"
             value={newLabel}
             onChange={(e) => {
               setNewLabel(e.target.value);
@@ -161,24 +165,24 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
             {COMMON_LABELS.map(label => (
               <option key={label} value={label}>{label}</option>
             ))}
-          </select>
-          <input
+          </Select>
+          <Input
             type="color"
             value={newColor}
             onChange={(e) => setNewColor(e.target.value)}
-            className="win-input h-9 w-10 cursor-pointer p-0.5"
+            className="h-9 w-10 cursor-pointer p-0.5"
             title="Counter color"
           />
-          <button
-            className="win-button px-4 py-2 text-[13px] font-medium"
+          <Button
+            className="px-4 py-2 text-[13px] font-medium"
             onClick={addNewCounter}
           >
             Add
-          </button>
+          </Button>
         </div>
-        <input
+        <Input
           type="text"
-          className="win-input w-full p-2 text-[13px] text-win-text placeholder:text-[#666666]"
+          className="w-full p-2 text-[13px] text-win-text placeholder:text-[#666666]"
           placeholder="Or type custom label..."
           value={COMMON_LABELS.includes(newLabel) ? "" : newLabel}
           onChange={(e) => setNewLabel(e.target.value || "P/T")}

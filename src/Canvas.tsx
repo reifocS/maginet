@@ -47,6 +47,19 @@ import {
   CARD_BACK_URL,
 } from "./constants/game";
 
+const SHORTCUT_DOCK_OPEN_STORAGE_KEY = "maginet:shortcut-dock-open";
+
+const getInitialShortcutDockOpen = () => {
+  if (typeof window === "undefined") return true;
+  try {
+    const value = window.localStorage.getItem(SHORTCUT_DOCK_OPEN_STORAGE_KEY);
+    if (value === null) return true;
+    return value === "true";
+  } catch {
+    return true;
+  }
+};
+
 function Canvas() {
   // Shape store state and actions
   const {
@@ -100,7 +113,9 @@ function Canvas() {
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState<Point | null>(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [isShortcutDockOpen, setIsShortcutDockOpen] = useState(true);
+  const [isShortcutDockOpen, setIsShortcutDockOpen] = useState(
+    getInitialShortcutDockOpen
+  );
   const [isGridVisible, setIsGridVisible] = useState(false);
   const [isSnapEnabled, setIsSnapEnabled] = useState(false);
   const [viewportSize, setViewportSize] = useState(() => ({
@@ -267,6 +282,18 @@ function Canvas() {
     media.addEventListener("change", handleChange);
     return () => media.removeEventListener("change", handleChange);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        SHORTCUT_DOCK_OPEN_STORAGE_KEY,
+        String(isShortcutDockOpen)
+      );
+    } catch {
+      // Ignore persistence failures (private mode, quota, etc.).
+    }
+  }, [isShortcutDockOpen]);
 
   const snapPointToGrid = (point: [number, number]) => {
     if (!isSnapEnabled) return point;

@@ -5,6 +5,7 @@ import { usePeerStore } from "./hooks/usePeerConnection";
 import { useShapeStore } from "./hooks/useShapeStore";
 import { Datum } from "./hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "./types/canvas";
+import Input, { Textarea } from "./components/ui/Input";
 
 type TooltipFace = {
   name?: string;
@@ -96,9 +97,9 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
           onConnect(trimmedValue);
         }}
       >
-        <input
+        <Input
           type="text"
-          className="win-input px-2 py-1.5 text-[10px]"
+          className="px-2 py-1.5 text-[10px]"
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder="Friend's peer ID"
@@ -182,12 +183,12 @@ const CardSearchModal = ({
           setQuery("");
         }}
       >
-        <input
+        <Input
           onFocus={() => {
             setSelectedShapeIds([]);
           }}
           type="search"
-          className="win-input flex-1 w-full px-2 py-1.5 text-[10px]"
+          className="flex-1 w-full px-2 py-1.5 text-[10px]"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search card name..."
@@ -429,10 +430,10 @@ export function SelectionPanel({
                   closeModal();
                 }}
               >
-                <textarea
+                <Textarea
                   id="deck"
                   name="deck"
-                  className="win-input w-full h-[100px] p-2.5 rounded-sm resize-none font-[Courier_New,Lucida_Console,monospace]"
+                  className="w-full h-[100px] p-2.5 rounded-sm resize-none font-[Courier_New,Lucida_Console,monospace]"
                   defaultValue={d ?? ""}
                   placeholder={`1 Legion Angel
 3 Wedding Announcement

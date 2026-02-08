@@ -8,6 +8,8 @@
 
 import React, { ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import Button from "./components/ui/Button";
+import useWindowDrag from "./components/ui/useWindowDrag";
 
 function PortalImpl({
   onClose,
@@ -21,6 +23,9 @@ function PortalImpl({
   title: string;
 }) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { dragOffset, isDragging, onDragHandlePointerDown } = useWindowDrag({
+    resetKey: title,
+  });
 
   useEffect(() => {
     if (modalRef.current !== null) {
@@ -76,18 +81,25 @@ function PortalImpl({
         className="Modal__modal win-panel relative flex min-h-[100px] min-w-[300px] grow-0 flex-col p-[18px]"
         tabIndex={-1}
         ref={modalRef}
+        style={{
+          transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+        }}
       >
-        <h2 className="Modal__title win-titlebar -mx-[18px] -mt-[18px] mb-3 px-2.5 py-1.5 text-[13px]">
+        <h2
+          className={`Modal__title win-titlebar -mx-[18px] -mt-[18px] mb-3 px-2.5 py-1.5 text-[13px] select-none touch-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+          onPointerDown={onDragHandlePointerDown}
+        >
           {title}
         </h2>
-        <button
-          className="Modal__closeButton win-bevel absolute top-1.5 right-2 flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm bg-win-button text-center font-bold"
+        <Button
+          variant="bevel"
+          className="Modal__closeButton absolute top-1.5 right-2 flex h-5 w-5 items-center justify-center rounded-sm text-center font-bold"
           aria-label="Close modal"
           type="button"
           onClick={onClose}
         >
           X
-        </button>
+        </Button>
         <div className="Modal__content pt-1">{children}</div>
       </div>
     </div>
