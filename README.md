@@ -1,6 +1,6 @@
-# Maginet 2 – Realtime MTG Table
+# Maginet – Realtime MTG Table
 
-Maginet 2 is a realtime web table for **Magic: The Gathering**.
+Maginet is a realtime web table for **Magic: The Gathering**.
 
 - Import your deck from a text export (MTGO / MTGA style).
 - See your cards as high‑quality images fetched from Scryfall.
