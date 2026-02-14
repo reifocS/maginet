@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
@@ -48,6 +48,12 @@ import {
 } from "./constants/game";
 
 const SHORTCUT_DOCK_OPEN_STORAGE_KEY = "maginet:shortcut-dock-open";
+const OBJECT_SNAP_THRESHOLD_PX = 10;
+
+type SmartGuideState = {
+  vertical: number | null;
+  horizontal: number | null;
+};
 
 const getInitialShortcutDockOpen = () => {
   if (typeof window === "undefined") return true;
@@ -67,6 +73,7 @@ function Canvas() {
     selectedShapeIds,
     shapeInCreation,
     editingText,
+    isDraggingShape,
     setShapes,
     setSelectedShapeIds,
     setShapeInCreation,
@@ -128,6 +135,10 @@ function Canvas() {
       : window.matchMedia("(max-width: 720px)").matches
   );
   const [showCounterControls, setShowCounterControls] = useState(false);
+  const [smartGuides, setSmartGuides] = useState<SmartGuideState>({
+    vertical: null,
+    horizontal: null,
+  });
 
   // Refs
   const ref = useRef<SVGSVGElement>(null);
@@ -299,13 +310,123 @@ function Canvas() {
     }
   }, [isShortcutDockOpen]);
 
-  const snapPointToGrid = (point: [number, number]) => {
-    if (!isSnapEnabled) return point;
-    const [x, y] = point;
-    const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
-    return [snappedX, snappedY] as [number, number];
-  };
+  const clearSmartGuides = useCallback(() => {
+    setSmartGuides((prev) => {
+      if (prev.vertical === null && prev.horizontal === null) {
+        return prev;
+      }
+      return { vertical: null, horizontal: null };
+    });
+  }, []);
+
+  const getShapeBounds = useCallback((shape: Shape, pointOverride?: [number, number]) => {
+    const [xRaw, yRaw] = pointOverride ?? (shape.point as [number, number]);
+    const [wRaw, hRaw] = shape.size as [number, number];
+    const left = wRaw >= 0 ? xRaw : xRaw + wRaw;
+    const top = hRaw >= 0 ? yRaw : yRaw + hRaw;
+    const width = Math.abs(wRaw);
+    const height = Math.abs(hRaw);
+    const right = left + width;
+    const bottom = top + height;
+    return {
+      left,
+      right,
+      top,
+      bottom,
+      centerX: left + width / 2,
+      centerY: top + height / 2,
+    };
+  }, []);
+
+  const snapPointToGrid = useCallback(
+    (
+      point: [number, number],
+      context?: { movingShape: Shape; excludeIds?: string[] }
+    ) => {
+      if (!isSnapEnabled || !context) {
+        if (context && !isSnapEnabled) clearSmartGuides();
+        return point;
+      }
+
+      const movingBounds = getShapeBounds(context.movingShape, point);
+      const movingAnchorsX = [movingBounds.left, movingBounds.centerX, movingBounds.right];
+      const movingAnchorsY = [movingBounds.top, movingBounds.centerY, movingBounds.bottom];
+      const snapThreshold = OBJECT_SNAP_THRESHOLD_PX / Math.max(camera.z, 0.001);
+
+      let snapDeltaX = 0;
+      let snapDeltaY = 0;
+      let guideX: number | null = null;
+      let guideY: number | null = null;
+      let bestXDistance = Number.POSITIVE_INFINITY;
+      let bestYDistance = Number.POSITIVE_INFINITY;
+
+      const trySnapX = (source: number, target: number) => {
+        const delta = target - source;
+        const distance = Math.abs(delta);
+        if (distance > snapThreshold) return;
+        if (distance < bestXDistance) {
+          bestXDistance = distance;
+          snapDeltaX = delta;
+          guideX = target;
+        }
+      };
+
+      const trySnapY = (source: number, target: number) => {
+        const delta = target - source;
+        const distance = Math.abs(delta);
+        if (distance > snapThreshold) return;
+        if (distance < bestYDistance) {
+          bestYDistance = distance;
+          snapDeltaY = delta;
+          guideY = target;
+        }
+      };
+
+      const excludedIds = new Set(context.excludeIds ?? []);
+      excludedIds.add(context.movingShape.id);
+
+      for (const candidate of shapes) {
+        if (excludedIds.has(candidate.id)) continue;
+        const bounds = getShapeBounds(candidate);
+        const candidateAnchorsX = [bounds.left, bounds.centerX, bounds.right];
+        const candidateAnchorsY = [bounds.top, bounds.centerY, bounds.bottom];
+        for (const source of movingAnchorsX) {
+          for (const target of candidateAnchorsX) {
+            trySnapX(source, target);
+          }
+        }
+        for (const source of movingAnchorsY) {
+          for (const target of candidateAnchorsY) {
+            trySnapY(source, target);
+          }
+        }
+      }
+
+      if (viewportSize.width > 0 && viewportSize.height > 0) {
+        const viewportCenter = screenToWorld(
+          [viewportSize.width / 2, viewportSize.height / 2],
+          camera
+        );
+        trySnapX(movingBounds.centerX, viewportCenter[0]);
+        trySnapY(movingBounds.centerY, viewportCenter[1]);
+      }
+
+      const snappedX = guideX !== null ? point[0] + snapDeltaX : point[0];
+      const snappedY = guideY !== null ? point[1] + snapDeltaY : point[1];
+
+      setSmartGuides((prev) => {
+        const nextVertical = guideX;
+        const nextHorizontal = guideY;
+        if (prev.vertical === nextVertical && prev.horizontal === nextHorizontal) {
+          return prev;
+        }
+        return { vertical: nextVertical, horizontal: nextHorizontal };
+      });
+
+      return [snappedX, snappedY] as [number, number];
+    },
+    [camera, clearSmartGuides, getShapeBounds, isSnapEnabled, shapes, viewportSize]
+  );
 
   // Hand drag
   const {
@@ -608,6 +729,12 @@ function Canvas() {
 
   // Effects
   useEffect(() => {
+    if (!isDraggingShape || mode !== "select" || !isSnapEnabled) {
+      clearSmartGuides();
+    }
+  }, [clearSmartGuides, isDraggingShape, isSnapEnabled, mode]);
+
+  useEffect(() => {
     if (isPanning) {
       document.body.style.cursor = "grabbing";
     } else if (isSpacePressed) {
@@ -671,6 +798,23 @@ function Canvas() {
   const transform = `scale(${camera.z}) translate(${camera.x}px, ${camera.y}px)`;
   const editingTextShape = shapes.find((shape) => shape.id === editingText?.id);
   const shapesFiltered = shapes.filter((shape) => shape.id !== editingText?.id);
+
+  const viewportWorldBounds = useMemo(() => {
+    if (viewportSize.width === 0 || viewportSize.height === 0) {
+      return null;
+    }
+    const topLeft = screenToWorld([0, 0], camera);
+    const bottomRight = screenToWorld(
+      [viewportSize.width, viewportSize.height],
+      camera
+    );
+    return {
+      minX: Math.min(topLeft[0], bottomRight[0]),
+      maxX: Math.max(topLeft[0], bottomRight[0]),
+      minY: Math.min(topLeft[1], bottomRight[1]),
+      maxY: Math.max(topLeft[1], bottomRight[1]),
+    };
+  }, [camera, viewportSize]);
 
 
   const gridBounds = useMemo(() => {
@@ -756,6 +900,36 @@ function Canvas() {
                 />
               </g>
             )}
+            {isSnapEnabled &&
+              viewportWorldBounds &&
+              (smartGuides.vertical !== null || smartGuides.horizontal !== null) && (
+                <g className="pointer-events-none" pointerEvents="none">
+                  {smartGuides.vertical !== null && (
+                    <line
+                      x1={smartGuides.vertical}
+                      y1={viewportWorldBounds.minY}
+                      x2={smartGuides.vertical}
+                      y2={viewportWorldBounds.maxY}
+                      stroke="#2563eb"
+                      strokeWidth={1}
+                      strokeDasharray="6 4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                  {smartGuides.horizontal !== null && (
+                    <line
+                      x1={viewportWorldBounds.minX}
+                      y1={smartGuides.horizontal}
+                      x2={viewportWorldBounds.maxX}
+                      y2={smartGuides.horizontal}
+                      stroke="#2563eb"
+                      strokeWidth={1}
+                      strokeDasharray="6 4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </g>
+              )}
             {/* Render other players' shapes */}
             {others.map((shape) => (
               <ShapeComponent
