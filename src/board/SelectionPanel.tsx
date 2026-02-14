@@ -298,6 +298,9 @@ const CardSearchModal = ({
 
 export function SelectionPanel({
   onDrawCard,
+  onNewGame,
+  showHelp,
+  onToggleHelp,
   setMode,
   mode,
   onMulligan,
@@ -314,6 +317,9 @@ export function SelectionPanel({
   onToggleSnap,
 }: {
   onDrawCard: () => void;
+  onNewGame: () => void;
+  showHelp: boolean;
+  onToggleHelp: () => void;
   setCamera: React.Dispatch<React.SetStateAction<Camera>>;
   setMode: React.Dispatch<React.SetStateAction<Mode>>;
   mode: Mode;
@@ -432,6 +438,9 @@ export function SelectionPanel({
   return (
     <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
       <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4 max-[720px]:top-3 max-[720px]:left-3 max-[720px]:flex-col max-[720px]:items-start">
+        <button className="selection-panel__pill danger" onClick={onNewGame}>
+          New Game
+        </button>
         <button
           className="selection-panel__pill"
           onClick={() =>
@@ -462,6 +471,18 @@ export function SelectionPanel({
         </button>
         <button className="selection-panel__pill" onClick={openConnectModal}>
           Connect
+        </button>
+        <button
+          className="help-button inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#666] text-base font-bold shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
+          onClick={onToggleHelp}
+          aria-pressed={showHelp}
+          title="Show controls (Press ?). How to play: The rules of Magic stay the same - Maginet just gives you a shared virtual table."
+          style={{
+            background: showHelp ? "#444" : "#fff",
+            color: showHelp ? "#fff" : "#666",
+          }}
+        >
+          ?
         </button>
       </div>
 

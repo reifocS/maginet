@@ -19,7 +19,7 @@ import useCards, {
   processRawText,
 } from "../hooks/useCards";
 import { generateId } from "../utils/math";
-import { useCardReducer } from "../hooks/useCardReducer";
+import { useCardReducer, type CardState } from "../hooks/useCardReducer";
 import { panCamera, screenToWorld } from "../utils/canvas_utils";
 import { SelectionPanel } from "./SelectionPanel";
 import inputs, { normalizeWheel } from "./inputs";
@@ -49,10 +49,95 @@ import {
 
 const SHORTCUT_DOCK_OPEN_STORAGE_KEY = "maginet:shortcut-dock-open";
 const OBJECT_SNAP_THRESHOLD_PX = 10;
+const LOCAL_GAME_STATE_STORAGE_KEY_PREFIX = "maginet:local-game-state:v1";
+const LOCAL_GAME_STATE_SESSION_KEY = "maginet:local-session-id:v1";
+const LOCAL_GAME_STATE_VERSION = 1;
+const LOCAL_GAME_STATE_TTL_MS = 1000 * 60 * 60 * 12;
 
 type SmartGuideState = {
   vertical: number | null;
   horizontal: number | null;
+};
+
+type PersistedLocalGameState = {
+  version: number;
+  savedAt: number;
+  deckParam: string;
+  cardState: CardState;
+  shapes: Shape[];
+  connectedPeerIds: string[];
+};
+
+const normalizeDeckParam = (value: string) =>
+  value.trim().replace(/\r\n/g, "\n");
+
+const createLocalSessionId = () => {
+  if (typeof window !== "undefined" && typeof window.crypto?.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const getSessionScopedStateStorageKey = () => {
+  if (typeof window === "undefined") return LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
+  try {
+    let sessionId = window.sessionStorage.getItem(LOCAL_GAME_STATE_SESSION_KEY);
+    if (!sessionId) {
+      sessionId = createLocalSessionId();
+      window.sessionStorage.setItem(LOCAL_GAME_STATE_SESSION_KEY, sessionId);
+    }
+    return `${LOCAL_GAME_STATE_STORAGE_KEY_PREFIX}:${sessionId}`;
+  } catch {
+    // Fallback for restricted environments where sessionStorage is unavailable.
+    return LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
+  }
+};
+
+const parsePersistedLocalGameState = (
+  raw: string
+): PersistedLocalGameState | null => {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const value = parsed as Record<string, unknown>;
+
+    if (value.version !== LOCAL_GAME_STATE_VERSION) return null;
+    if (typeof value.savedAt !== "number" || !Number.isFinite(value.savedAt)) {
+      return null;
+    }
+    if (typeof value.deckParam !== "string") return null;
+
+    const cardStateValue = value.cardState as Record<string, unknown> | undefined;
+    if (!cardStateValue) return null;
+    if (!Array.isArray(cardStateValue.cards) || !Array.isArray(cardStateValue.deck)) {
+      return null;
+    }
+    if (!Array.isArray(value.shapes)) return null;
+
+    return {
+      version: LOCAL_GAME_STATE_VERSION,
+      savedAt: value.savedAt,
+      deckParam: value.deckParam,
+      cardState: {
+        cards: cardStateValue.cards as Card[],
+        deck: cardStateValue.deck as Card[],
+        lastAction:
+          typeof cardStateValue.lastAction === "string"
+            ? cardStateValue.lastAction
+            : undefined,
+        actionId:
+          typeof cardStateValue.actionId === "number"
+            ? cardStateValue.actionId
+            : undefined,
+      },
+      shapes: value.shapes as Shape[],
+      connectedPeerIds: Array.isArray(value.connectedPeerIds)
+        ? value.connectedPeerIds.filter((id): id is string => typeof id === "string")
+        : [],
+    };
+  } catch {
+    return null;
+  }
 };
 
 const getInitialShortcutDockOpen = () => {
@@ -139,6 +224,9 @@ function Canvas() {
     vertical: null,
     horizontal: null,
   });
+  const [sessionHydrationStatus, setSessionHydrationStatus] = useState<
+    "pending" | "restored" | "none"
+  >("pending");
 
   // Refs
   const ref = useRef<SVGSVGElement>(null);
@@ -147,6 +235,9 @@ function Canvas() {
   const drawCardRef = useRef<() => void>(() => {});
   const engageCardRef = useRef<() => void>(() => {});
   const applyZoomStepRef = useRef(applyZoomStep);
+  const [localStateStorageKey] = useState(getSessionScopedStateStorageKey);
+  const reconnectPeerIdsRef = useRef<string[]>([]);
+  const attemptedReconnectRef = useRef(false);
   applyZoomStepRef.current = applyZoomStep;
 
   // Touch gestures
@@ -176,6 +267,7 @@ function Canvas() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const deckParam = params.get("deck") ?? "";
+  const normalizedDeckParam = normalizeDeckParam(deckParam);
 
   const [isSetupComplete, setIsSetupComplete] = useState(false);
 
@@ -309,6 +401,112 @@ function Canvas() {
       // Ignore persistence failures (private mode, quota, etc.).
     }
   }, [isShortcutDockOpen]);
+
+  // Restore local state after refresh (deck/hand + board shapes)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    reconnectPeerIdsRef.current = [];
+    attemptedReconnectRef.current = false;
+    setSessionHydrationStatus("pending");
+
+    if (!normalizedDeckParam) {
+      setSessionHydrationStatus("none");
+      return;
+    }
+
+    const raw = window.localStorage.getItem(localStateStorageKey);
+    if (!raw) {
+      setSessionHydrationStatus("none");
+      return;
+    }
+
+    const snapshot = parsePersistedLocalGameState(raw);
+    if (!snapshot) {
+      setSessionHydrationStatus("none");
+      return;
+    }
+
+    const isDeckMatch =
+      normalizeDeckParam(snapshot.deckParam) === normalizedDeckParam;
+    const isFresh = Date.now() - snapshot.savedAt <= LOCAL_GAME_STATE_TTL_MS;
+    if (!isDeckMatch || !isFresh) {
+      setSessionHydrationStatus("none");
+      return;
+    }
+
+    dispatch({ type: "SET_STATE", payload: snapshot.cardState });
+    useShapeStore.setState({
+      shapes: snapshot.shapes,
+      selectedShapeIds: [],
+      shapeInCreation: null,
+      editingText: null,
+      history: { past: [], future: [] },
+      canUndo: false,
+      canRedo: false,
+      isDraggingShape: false,
+      isResizingShape: false,
+      isRotatingShape: false,
+    });
+    reconnectPeerIdsRef.current = snapshot.connectedPeerIds;
+    setSessionHydrationStatus("restored");
+    setIsSetupComplete(true);
+    toast("Recovered your previous local table state", {
+      id: "local-state-recovered",
+    });
+  }, [dispatch, localStateStorageKey, normalizedDeckParam]);
+
+  // Reconnect to previous peers after a refresh, when possible.
+  useEffect(() => {
+    if (sessionHydrationStatus !== "restored") return;
+    if (!peer?.id || attemptedReconnectRef.current) return;
+
+    const reconnectIds = Array.from(new Set(reconnectPeerIdsRef.current)).filter(
+      (id) => id && id !== peer.id && !connections.has(id)
+    );
+    attemptedReconnectRef.current = true;
+    reconnectIds.forEach((peerId) => connectToPeer(peerId));
+    if (reconnectIds.length > 0) {
+      toast(
+        `Trying to reconnect to ${reconnectIds.length} peer${reconnectIds.length === 1 ? "" : "s"}`,
+        { id: "local-state-reconnect" }
+      );
+    }
+  }, [connectToPeer, connections, peer?.id, sessionHydrationStatus]);
+
+  // Persist local state continuously so refresh/disconnect can recover it.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionHydrationStatus === "pending" || !normalizedDeckParam) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const snapshot: PersistedLocalGameState = {
+        version: LOCAL_GAME_STATE_VERSION,
+        savedAt: Date.now(),
+        deckParam: normalizedDeckParam,
+        cardState: {
+          cards: cardState.cards,
+          deck: cardState.deck,
+          lastAction: cardState.lastAction,
+          actionId: cardState.actionId,
+        },
+        shapes,
+        connectedPeerIds: Array.from(connections.keys()),
+      };
+      try {
+        window.localStorage.setItem(
+          localStateStorageKey,
+          JSON.stringify(snapshot)
+        );
+      } catch {
+        // Ignore persistence failures (private mode, quota, etc.).
+      }
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [cardState, connections, localStateStorageKey, normalizedDeckParam, sessionHydrationStatus, shapes]);
 
   const clearSmartGuides = useCallback(() => {
     setSmartGuides((prev) => {
@@ -502,6 +700,53 @@ function Canvas() {
 
   const addCardToHand = (card: Datum) => {
     dispatch({ type: "ADD_TO_HAND", payload: card });
+  };
+
+  const startNewGame = () => {
+    if (!data) {
+      toast.error("Deck is still loading. Try again in a moment.");
+      return;
+    }
+
+    const shouldReset = window.confirm(
+      "Start a new game? This will clear your battlefield and hand for this tab."
+    );
+    if (!shouldReset) return;
+
+    const nextDeck = mapDataToCards(data);
+    dispatch({ type: "INITIALIZE_DECK", payload: nextDeck });
+    useShapeStore.setState({
+      shapes: [],
+      selectedShapeIds: [],
+      shapeInCreation: null,
+      editingText: null,
+      history: { past: [], future: [] },
+      canUndo: false,
+      canRedo: false,
+      isDraggingShape: false,
+      isResizingShape: false,
+      isRotatingShape: false,
+    });
+    setDragVector(null);
+    setIsDragging(false);
+    setMode("select");
+    setShapeType("text");
+    setShowCounterControls(false);
+    setSelectedHandCardId(null);
+    clearSmartGuides();
+    reconnectPeerIdsRef.current = Array.from(connections.keys());
+    attemptedReconnectRef.current = true;
+    setSessionHydrationStatus("none");
+
+    try {
+      window.localStorage.removeItem(localStateStorageKey);
+    } catch {
+      // Ignore persistence failures (private mode, quota, etc.).
+    }
+
+    toast(`Started a new game with ${nextDeck.length} cards`, {
+      id: "new-game-started",
+    });
   };
 
   drawCardRef.current = drawCard;
@@ -745,12 +990,12 @@ function Canvas() {
   }, [isPanning, isSpacePressed]);
 
   useEffect(() => {
-    if (data) {
-      const initialDeck: Card[] = mapDataToCards(data);
-      dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
-      toast(`Deck initialized with ${initialDeck.length} cards`);
-    }
-  }, [data, dispatch]);
+    if (!data || sessionHydrationStatus === "pending") return;
+    if (sessionHydrationStatus === "restored") return;
+    const initialDeck: Card[] = mapDataToCards(data);
+    dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
+    toast(`Deck initialized with ${initialDeck.length} cards`);
+  }, [data, dispatch, sessionHydrationStatus]);
 
 
   useKeyboardShortcuts({
@@ -1041,6 +1286,9 @@ function Canvas() {
           mode={mode}
           onMulligan={mulligan}
           onDrawCard={drawCard}
+          onNewGame={startNewGame}
+          showHelp={showHelp}
+          onToggleHelp={() => setShowHelp((prev) => !prev)}
           onShuffleDeck={onShuffleDeck}
           cards={data}
           relatedCards={relatedCards}
@@ -1102,19 +1350,6 @@ function Canvas() {
           />
         </div>
       )}
-
-      {/* Help button */}
-      <button
-        onClick={() => setShowHelp(!showHelp)}
-        className="help-button fixed top-3 left-[calc(12px+clamp(200px,24vw,280px)+8px)] max-[720px]:top-[calc(10px+env(safe-area-inset-top))] max-[720px]:left-[calc(10px+env(safe-area-inset-left))] z-(--z-help-button) h-7 w-7 rounded-full border border-[#666] text-base font-bold cursor-pointer inline-flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
-        style={{
-          background: showHelp ? "#444" : "#fff",
-          color: showHelp ? "#fff" : "#666",
-        }}
-        title="Show controls (Press ?). How to play: The rules of Magic stay the same - Maginet just gives you a shared virtual table."
-      >
-        ?
-      </button>
 
       <ShortcutDock
         isMobile={isMobile}
