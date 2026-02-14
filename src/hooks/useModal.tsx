@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 
-import Modal from "../Modal";
+import Modal from "../components/ui/Modal";
 
 export default function useModal(): [
   React.ReactElement | null,

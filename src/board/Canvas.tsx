@@ -6,7 +6,7 @@ import { Handler, useGesture } from "@use-gesture/react";
 
 import { Shape as ShapeComponent } from "./Shape";
 import Grid from "./Grid";
-import { DOMVector, screenToCanvas } from "./utils/vec";
+import { DOMVector, screenToCanvas } from "../utils/vec";
 import Hand from "./Hand";
 import ContextMenu from "./ContextMenu";
 import CounterControls from "./components/CounterControls";
@@ -17,18 +17,18 @@ import useCards, {
   Datum,
   mapDataToCards,
   processRawText,
-} from "./hooks/useCards";
-import { generateId } from "./utils/math";
-import { useCardReducer } from "./hooks/useCardReducer";
-import { panCamera, screenToWorld } from "./utils/canvas_utils";
+} from "../hooks/useCards";
+import { generateId } from "../utils/math";
+import { useCardReducer } from "../hooks/useCardReducer";
+import { panCamera, screenToWorld } from "../utils/canvas_utils";
 import { SelectionPanel } from "./SelectionPanel";
 import inputs, { normalizeWheel } from "./inputs";
-import { useShapeStore } from "./hooks/useShapeStore";
-import { useCamera } from "./hooks/useCamera";
-import { usePeerSync } from "./hooks/usePeerSync";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useTouchGestures } from "./hooks/useTouchGestures";
-import { useHandDrag } from "./hooks/useHandDrag";
+import { useShapeStore } from "../hooks/useShapeStore";
+import { useCamera } from "../hooks/useCamera";
+import { usePeerSync } from "../hooks/usePeerSync";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useTouchGestures } from "../hooks/useTouchGestures";
+import { useHandDrag } from "../hooks/useHandDrag";
 import EditingTextShape from "./EditingTextShape";
 
 import {
@@ -38,7 +38,7 @@ import {
   ShapeType,
   Mode,
   intersect,
-} from "./types/canvas";
+} from "../types/canvas";
 
 import {
   HEARTBEAT_STALE_MS,

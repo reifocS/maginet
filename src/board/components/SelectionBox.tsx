@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Shape as ShapeType, Camera } from "../types/canvas";
-import { DOMVector, screenToCanvas } from "../utils/vec";
-import { getBounds } from "../utils/canvas_utils";
-import { useShapeStore } from "../hooks/useShapeStore";
+import { Shape as ShapeType, Camera } from "../../types/canvas";
+import { DOMVector, screenToCanvas } from "../../utils/vec";
+import { getBounds } from "../../utils/canvas_utils";
+import { useShapeStore } from "../../hooks/useShapeStore";
 
 type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rotate";
 

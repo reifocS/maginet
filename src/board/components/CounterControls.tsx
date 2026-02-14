@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Counter } from "../types/canvas";
-import Button from "./ui/Button";
-import Input, { Select } from "./ui/Input";
+import { Counter } from "../../types/canvas";
+import Button from "../../components/ui/Button";
+import Input, { Select } from "../../components/ui/Input";
 
 interface CounterControlsProps {
   currentCounters: Counter[];

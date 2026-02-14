@@ -1,4 +1,4 @@
-import { Shape as ShapeType } from "../types/canvas";
+import { Shape as ShapeType } from "../../types/canvas";
 import CounterOverlay from "./CounterOverlay";
 
 const ImageShape = ({

@@ -1,4 +1,4 @@
-import type { ActionLogEntry } from "../ActionLog";
+import type { ActionLogEntry } from "../board/ActionLog";
 import type { RandomEventType } from "../types/canvas";
 
 export function logActionToConsole(

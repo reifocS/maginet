@@ -1,8 +1,8 @@
 import { useRef } from "react";
-import { Camera, Mode, Shape as ShapeType } from "./types/canvas";
-import { screenToCanvas } from "./utils/vec";
-import vec from "./utils/vec";
-import { useShapeStore } from "./hooks/useShapeStore";
+import { Camera, Mode, Shape as ShapeType } from "../types/canvas";
+import { screenToCanvas } from "../utils/vec";
+import vec from "../utils/vec";
+import { useShapeStore } from "../hooks/useShapeStore";
 import ShapeFactory from "./components/ShapeFactory";
 import { SelectionBox } from "./components/SelectionBox";
 

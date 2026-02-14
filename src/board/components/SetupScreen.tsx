@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { processRawText } from "../hooks/useCards";
-import { DEFAULT_DECK } from "../DEFAULT_DECK";
+import { processRawText } from "../../hooks/useCards";
+import { DEFAULT_DECK } from "../../data/defaultDeck";
 import type Peer from "peerjs";
 import type { DataConnection } from "peerjs";
-import Button from "./ui/Button";
-import Input, { Textarea } from "./ui/Input";
+import Button from "../../components/ui/Button";
+import Input, { Textarea } from "../../components/ui/Input";
 
 interface SetupScreenProps {
   deckParam: string;

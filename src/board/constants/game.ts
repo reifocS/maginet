@@ -1,4 +1,4 @@
-import type { ShortcutSection } from "../types/canvas";
+import type { ShortcutSection } from "../../types/canvas";
 
 export const HEARTBEAT_INTERVAL_MS = 5000;
 export const HEARTBEAT_STALE_MS = HEARTBEAT_INTERVAL_MS * 3;

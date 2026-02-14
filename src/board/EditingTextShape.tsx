@@ -1,7 +1,7 @@
 import React from "react";
-import { getBounds } from "./utils/canvas_utils";
-import { Shape } from "./types/canvas";
-import { Textarea } from "./components/ui/Input";
+import { getBounds } from "../utils/canvas_utils";
+import { Shape } from "../types/canvas";
+import { Textarea } from "../components/ui/Input";
 
 interface EditableTextProps {
   editingTextShape?: Shape;

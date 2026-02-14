@@ -5,7 +5,7 @@ import {
   ContextMenuItem,
   useContextMenu,
 } from "use-context-menu";
-import { Card } from "./types/canvas";
+import { Card } from "../types/canvas";
 
 interface HandProps {
   cards: Card[];

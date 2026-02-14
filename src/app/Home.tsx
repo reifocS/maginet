@@ -1,5 +1,5 @@
 import { Form } from "react-router-dom";
-import { Textarea } from "./components/ui/Input";
+import { Textarea } from "../components/ui/Input";
 
 export default function Home() {
   return (

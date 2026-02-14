@@ -1,6 +1,6 @@
 import { KEYBOARD_SHORTCUT_SECTIONS } from "../constants/game";
-import Button from "./ui/Button";
-import useWindowDrag from "./ui/useWindowDrag";
+import Button from "../../components/ui/Button";
+import useWindowDrag from "../../components/ui/useWindowDrag";
 
 interface ShortcutDockProps {
   isMobile: boolean;

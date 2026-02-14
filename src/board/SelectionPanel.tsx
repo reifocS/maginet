@@ -1,11 +1,11 @@
 import React from "react";
 import { useLocation, Form } from "react-router-dom";
-import useModal from "./hooks/useModal";
-import { usePeerStore } from "./hooks/usePeerConnection";
-import { useShapeStore } from "./hooks/useShapeStore";
-import { Datum } from "./hooks/useCards";
-import { Camera, Mode, Card, ShapeType } from "./types/canvas";
-import Input, { Textarea } from "./components/ui/Input";
+import useModal from "../hooks/useModal";
+import { usePeerStore } from "../hooks/usePeerConnection";
+import { useShapeStore } from "../hooks/useShapeStore";
+import { Datum } from "../hooks/useCards";
+import { Camera, Mode, Card, ShapeType } from "../types/canvas";
+import Input, { Textarea } from "../components/ui/Input";
 
 type TooltipFace = {
   name?: string;

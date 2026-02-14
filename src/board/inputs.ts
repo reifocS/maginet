@@ -1,5 +1,5 @@
 import React from "react";
-import vec from "./utils/vec";
+import vec from "../utils/vec";
 
 interface PointerInfo {
   target: string;

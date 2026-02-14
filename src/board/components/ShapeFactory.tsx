@@ -3,7 +3,7 @@ import TextShape from "../shapes/TextShape";
 import ImageShape from "../shapes/ImageShape";
 import RectangleShape from "../shapes/RectangleShape";
 import TokenShape from "../shapes/TokenShape";
-import { Shape as ShapeType } from "../types/canvas";
+import { Shape as ShapeType } from "../../types/canvas";
 
 export const STACKING_OFFSET = 10;
 

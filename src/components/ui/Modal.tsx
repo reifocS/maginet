@@ -8,8 +8,8 @@
 
 import React, { ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import Button from "./components/ui/Button";
-import useWindowDrag from "./components/ui/useWindowDrag";
+import Button from "./Button";
+import useWindowDrag from "./useWindowDrag";
 
 function PortalImpl({
   onClose,

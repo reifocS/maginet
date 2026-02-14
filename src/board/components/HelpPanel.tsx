@@ -1,10 +1,10 @@
-import type { ShortcutSection } from "../types/canvas";
+import type { ShortcutSection } from "../../types/canvas";
 import {
   PRIMARY_HELP_SHORTCUT_SECTIONS,
   OTHER_HELP_SHORTCUT_SECTION,
 } from "../constants/game";
-import Button from "./ui/Button";
-import useWindowDrag from "./ui/useWindowDrag";
+import Button from "../../components/ui/Button";
+import useWindowDrag from "../../components/ui/useWindowDrag";
 
 interface HelpPanelProps {
   showHelp: boolean;

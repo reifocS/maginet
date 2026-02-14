@@ -4,14 +4,14 @@ import { usePeerStore } from "./usePeerConnection";
 import { useShapeStore } from "./useShapeStore";
 import type { Shape } from "../types/canvas";
 import type { RandomEventType } from "../types/canvas";
-import type { ActionLogEntry } from "../ActionLog";
+import type { ActionLogEntry } from "../board/ActionLog";
 import type { CardState } from "./useCardReducer";
 import {
 
   HEARTBEAT_INTERVAL_MS,
   MAX_ACTION_LOG_ENTRIES,
   CARD_ACTION_DESCRIPTIONS,
-} from "../constants/game";
+} from "../board/constants/game";
 import { logActionToConsole, generatePlayerName, describeRandomEvent } from "../utils/game";
 
 interface UsePeerSyncOptions {

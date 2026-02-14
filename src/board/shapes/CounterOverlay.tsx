@@ -1,4 +1,4 @@
-import { Shape } from "../types/canvas";
+import { Shape } from "../../types/canvas";
 
 interface CounterOverlayProps {
   shape: Shape;
