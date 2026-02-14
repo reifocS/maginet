@@ -917,8 +917,15 @@ function Canvas() {
 
       {/* Zoomed card preview */}
       {isCommandPressed && hoveredCard && (
-        <div className="zoomed-card fixed top-2.5 right-2.5 z-(--z-zoomed-card) h-[700px] max-[720px]:h-[min(45vh,320px)] border-2 border-black bg-white shadow-[0_4px_8px_rgba(0,0,0,0.2)]" style={{ pointerEvents: "none" }}>
-          <img src={hoveredCard} alt={`Zoomed ${hoveredCard}`} />
+        <div
+          className="zoomed-card fixed top-2.5 right-2.5 z-(--z-zoomed-card) h-[700px] max-[720px]:h-[min(45vh,320px)] aspect-[488/680] overflow-hidden border-2 border-black bg-white shadow-[0_4px_8px_rgba(0,0,0,0.2)]"
+          style={{ pointerEvents: "none" }}
+        >
+          <img
+            className="block h-full w-full object-cover"
+            src={hoveredCard}
+            alt={`Zoomed ${hoveredCard}`}
+          />
         </div>
       )}
 
