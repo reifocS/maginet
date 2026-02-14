@@ -35,33 +35,35 @@ export default function ContextMenu({
   onManageCounters,
   onClearCounters,
 }: ContextMenuProps) {
+  const menuButtonClass =
+    "m-0 w-full overflow-visible border-0 bg-transparent p-0 text-left leading-normal text-inherit";
   const { contextMenu, onContextMenu } = useContextMenu(
     <div className="custom-context-menu flex flex-col gap-0.5 py-1.5">
       <ContextMenuCategory>Card actions</ContextMenuCategory>
       <ContextMenuItem>
-        <button onClick={onEngageDisengageCard}>Engage/Disengage</button>
+        <button className={menuButtonClass} onClick={onEngageDisengageCard}>Engage/Disengage</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={onFlip}>Flip</button>
+        <button className={menuButtonClass} onClick={onFlip}>Flip</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={() => sendBackToDeck("bottom")}>
+        <button className={menuButtonClass} onClick={() => sendBackToDeck("bottom")}>
           Send to bottom of Deck
         </button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={() => sendBackToDeck("top")}>
+        <button className={menuButtonClass} onClick={() => sendBackToDeck("top")}>
           Send to top of Deck
         </button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={sendBackToHand}>Send to Hand</button>
+        <button className={menuButtonClass} onClick={sendBackToHand}>Send to Hand</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={copy}>Copy</button>
+        <button className={menuButtonClass} onClick={copy}>Copy</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={increaseSrcIndex}>Transform</button>
+        <button className={menuButtonClass} onClick={increaseSrcIndex}>Transform</button>
       </ContextMenuItem>
       {/* <ContextMenuItem>
         <button onClick={giveCardToOpponent}>Give Card to Opponent</button>
@@ -69,18 +71,18 @@ export default function ContextMenu({
       <ContextMenuDivider />
       <ContextMenuCategory>Counters</ContextMenuCategory>
       <ContextMenuItem>
-        <button onClick={onManageCounters}>Manage Counters...</button>
+        <button className={menuButtonClass} onClick={onManageCounters}>Manage Counters...</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={onClearCounters}>Clear All Counters</button>
+        <button className={menuButtonClass} onClick={onClearCounters}>Clear All Counters</button>
       </ContextMenuItem>
       <ContextMenuDivider />
       <ContextMenuCategory>Card position</ContextMenuCategory>
       <ContextMenuItem>
-        <button onClick={sendCardToFront}>Bring to front</button>
+        <button className={menuButtonClass} onClick={sendCardToFront}>Bring to front</button>
       </ContextMenuItem>
       <ContextMenuItem>
-        <button onClick={sendCardToBack}>Bring to back</button>
+        <button className={menuButtonClass} onClick={sendCardToBack}>Bring to back</button>
       </ContextMenuItem>
     </div>
   );

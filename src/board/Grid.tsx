@@ -30,6 +30,7 @@ const Grid: React.FC<GridProps> = ({
         stroke={stroke}
         strokeWidth={strokeWidth}
         opacity={opacity}
+        shapeRendering="crispEdges"
       />
     );
   }
@@ -45,6 +46,7 @@ const Grid: React.FC<GridProps> = ({
         stroke={stroke}
         strokeWidth={strokeWidth}
         opacity={opacity}
+        shapeRendering="crispEdges"
       />
     );
   }

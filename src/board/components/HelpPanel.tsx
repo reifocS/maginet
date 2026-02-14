@@ -116,7 +116,7 @@ export default function HelpPanel({ showHelp, onToggleHelp }: HelpPanelProps) {
 
   return (
     <div
-      className="help-dialog win-panel fixed top-[60px] left-5 z-(--z-help-dialog) flex max-h-[calc(100vh-120px)] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden p-0 text-[13px]"
+      className="help-dialog win-panel fixed top-[60px] left-5 max-[720px]:left-2.5 max-[720px]:right-2.5 max-[720px]:top-[50px] max-[720px]:max-w-[calc(100vw-20px)] max-[720px]:max-h-[calc(100vh-100px)] z-(--z-help-dialog) flex max-h-[calc(100vh-120px)] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden p-0 text-[13px]"
       onWheel={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       style={{

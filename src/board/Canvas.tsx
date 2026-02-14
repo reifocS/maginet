@@ -729,7 +729,7 @@ function Canvas() {
         onClearCounters={clearCountersOnSelected}
       >
         <svg
-          className="canvas-surface bg-white shadow-none"
+          className="canvas-surface fixed inset-0 h-full w-full bg-white shadow-none"
           ref={ref}
           onPointerDownCapture={onPointerDownCaptureCanvas}
           onPointerMoveCapture={onPointerMoveCaptureCanvas}
@@ -743,7 +743,7 @@ function Canvas() {
           <g style={{ transform }}>
             {isGridVisible && gridBounds && (
               <g
-                className="canvas-grid pointer-events-none"
+                className="pointer-events-none"
                 transform={`translate(${gridBounds.startX} ${gridBounds.startY})`}
                 pointerEvents="none"
               >
@@ -822,19 +822,25 @@ function Canvas() {
             )}
 
             {dragPreview && (
-              <g className="card-drop-preview" pointerEvents="none">
+              <g pointerEvents="none">
                 <image
                   href={dragPreview.faceDown ? CARD_BACK_URL : dragPreview.src}
                   x={dragPreview.point[0]}
                   y={dragPreview.point[1]}
                   width={CARD_PREVIEW_SIZE[0]}
                   height={CARD_PREVIEW_SIZE[1]}
+                  opacity={0.75}
+                  style={{ filter: "drop-shadow(0 3px 6px rgba(0, 0, 0, 0.25))" }}
                 />
                 <rect
                   x={dragPreview.point[0]}
                   y={dragPreview.point[1]}
                   width={CARD_PREVIEW_SIZE[0]}
                   height={CARD_PREVIEW_SIZE[1]}
+                  fill="none"
+                  stroke="rgba(90, 68, 40, 0.6)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
                 />
               </g>
             )}
@@ -911,7 +917,7 @@ function Canvas() {
 
       {/* Zoomed card preview */}
       {isCommandPressed && hoveredCard && (
-        <div className="zoomed-card fixed top-2.5 right-2.5 h-[700px] border-2 border-black bg-white z-(--z-zoomed-card) shadow-[0_4px_8px_rgba(0,0,0,0.2)]" style={{ pointerEvents: "none" }}>
+        <div className="zoomed-card fixed top-2.5 right-2.5 z-(--z-zoomed-card) h-[700px] max-[720px]:h-[min(45vh,320px)] border-2 border-black bg-white shadow-[0_4px_8px_rgba(0,0,0,0.2)]" style={{ pointerEvents: "none" }}>
           <img src={hoveredCard} alt={`Zoomed ${hoveredCard}`} />
         </div>
       )}
@@ -919,7 +925,7 @@ function Canvas() {
       {/* Help button */}
       <button
         onClick={() => setShowHelp(!showHelp)}
-        className="help-button fixed top-3 left-[calc(12px+clamp(200px,24vw,280px)+8px)] z-(--z-help-button) h-7 w-7 rounded-full border border-[#666] text-base font-bold cursor-pointer inline-flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
+        className="help-button fixed top-3 left-[calc(12px+clamp(200px,24vw,280px)+8px)] max-[720px]:top-[calc(10px+env(safe-area-inset-top))] max-[720px]:left-[calc(10px+env(safe-area-inset-left))] z-(--z-help-button) h-7 w-7 rounded-full border border-[#666] text-base font-bold cursor-pointer inline-flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
         style={{
           background: showHelp ? "#444" : "#fff",
           color: showHelp ? "#fff" : "#666",

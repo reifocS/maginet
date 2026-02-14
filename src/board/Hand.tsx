@@ -44,12 +44,15 @@ export default function Hand({
   const [contextPoint, setContextPoint] = React.useState<{ x: number; y: number } | null>(
     null
   );
+  const menuButtonClass =
+    "m-0 w-full overflow-visible border-0 bg-transparent p-0 text-left leading-normal text-inherit";
 
   const { contextMenu, onContextMenu } = useContextMenu(
     <div className="custom-context-menu flex flex-col gap-0.5 py-1.5">
       <ContextMenuCategory>Hand</ContextMenuCategory>
       <ContextMenuItem>
         <button
+          className={menuButtonClass}
           onClick={() => {
             if (!contextCardId) return;
             onPlayCardFromMenu?.(contextCardId, contextPoint, false);
@@ -60,6 +63,7 @@ export default function Hand({
       </ContextMenuItem>
       <ContextMenuItem>
         <button
+          className={menuButtonClass}
           onClick={() => {
             if (!contextCardId) return;
             onPlayCardFromMenu?.(contextCardId, contextPoint, true);
@@ -72,6 +76,7 @@ export default function Hand({
       <ContextMenuCategory>Deck</ContextMenuCategory>
       <ContextMenuItem>
         <button
+          className={menuButtonClass}
           onClick={() => {
             if (!contextCardId) return;
             onMoveCardToDeck?.(contextCardId, "top");
@@ -82,6 +87,7 @@ export default function Hand({
       </ContextMenuItem>
       <ContextMenuItem>
         <button
+          className={menuButtonClass}
           onClick={() => {
             if (!contextCardId) return;
             onMoveCardToDeck?.(contextCardId, "bottom");
@@ -94,7 +100,7 @@ export default function Hand({
   );
 
   return (
-    <div className={`hand fixed bottom-0 z-(--z-hand) flex w-full gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain justify-center p-2.5 [-webkit-overflow-scrolling:touch]${draggingCardId ? " hand--dragging cursor-grabbing !overflow-y-visible" : ""}`}>
+    <div className={`hand fixed bottom-0 z-(--z-hand) flex w-full gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain justify-center p-2.5 [-webkit-overflow-scrolling:touch] max-[720px]:gap-1.5 max-[720px]:justify-start max-[720px]:px-3 max-[720px]:pt-2 max-[720px]:pb-[calc(8px+env(safe-area-inset-bottom))]${draggingCardId ? " cursor-grabbing !overflow-y-visible" : ""}`}>
       {cards.map((card) => {
         const isDragging = draggingCardId === card.id;
         return (
@@ -102,7 +108,7 @@ export default function Hand({
             key={card.id}
             src={card.src[0]}
             alt={`Card ${card.id}`}
-            className={`hand-card w-[100px] h-auto cursor-grab transition-transform duration-200 ease-in-out hover:scale-110${selectedCardId === card.id ? " selected outline-2 outline-[rgba(59,130,246,0.9)] outline-offset-2 scale-105" : ""}${isDragging ? " is-dragging !opacity-100 -translate-y-1.5 scale-105 outline-2 outline-dashed outline-[rgba(58,43,18,0.85)] outline-offset-2 shadow-[0_4px_10px_rgba(0,0,0,0.25)] !cursor-grabbing" : ""}`}
+            className={`hand-card h-auto w-[100px] max-[720px]:w-[72px] max-[480px]:w-16 cursor-grab transition-transform duration-200 ease-in-out hover:scale-110${selectedCardId === card.id ? " selected outline-2 outline-[rgba(59,130,246,0.9)] outline-offset-2 scale-105" : ""}${draggingCardId && !isDragging ? " opacity-[0.55] saturate-[0.7]" : ""}${isDragging ? " is-dragging !opacity-100 -translate-y-1.5 scale-105 outline-2 outline-dashed outline-[rgba(58,43,18,0.85)] outline-offset-2 shadow-[0_4px_10px_rgba(0,0,0,0.25)] !cursor-grabbing" : ""}`}
             draggable={false}
             onPointerDown={(e) => {
               e.stopPropagation();

@@ -80,8 +80,8 @@ export default function SetupScreen({
 
   return (
     <div className="setup-screen fixed inset-0 z-(--z-setup) flex items-center justify-center p-[clamp(16px,4vw,48px)] bg-[repeating-linear-gradient(45deg,#dcdcdc_0px,#dcdcdc_12px,#cfcfcf_12px,#cfcfcf_24px)] animate-[setup-fade_0.2s_ease-out]">
-      <div className="setup-card win-panel w-[min(760px,92vw)] rounded-[6px] p-[clamp(16px,3vw,28px)] flex flex-col gap-4 animate-[setup-rise_0.25s_ease-out]">
-        <div className="setup-header flex justify-between items-start gap-4">
+      <div className="setup-card win-panel w-[min(760px,92vw)] max-[720px]:w-full rounded-[6px] p-[clamp(16px,3vw,28px)] flex flex-col gap-4 animate-[setup-rise_0.25s_ease-out]">
+        <div className="setup-header flex justify-between items-start gap-4 max-[720px]:flex-col max-[720px]:items-start">
           <div>
             <p className="setup-kicker m-0 mb-1.5 text-[10px] tracking-[0.24em] uppercase text-win-text-muted">Table Setup</p>
             <h1 className="setup-title m-0 text-[clamp(22px,3vw,30px)]">
@@ -127,17 +127,17 @@ export default function SetupScreen({
               </span>
               {setupError && <span className="setup-error text-xs text-win-danger">{setupError}</span>}
             </div>
-            <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
+            <div className="setup-actions flex gap-2.5 justify-end max-[720px]:justify-stretch flex-wrap">
               <Button
                 type="button"
-                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg max-[720px]:flex-[1_1_100%]"
                 onClick={handleUseSampleDeck}
               >
                 Use sample deck
               </Button>
               <Button
                 type="button"
-                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5] max-[720px]:flex-[1_1_100%]"
                 onClick={handleDeckContinue}
                 disabled={deckDraftCount === 0}
               >
@@ -156,12 +156,12 @@ export default function SetupScreen({
                 Deck failed to load. Check card names.
               </div>
             )}
-            <div className="setup-grid grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
+            <div className="setup-grid grid grid-cols-[repeat(2,minmax(0,1fr))] max-[720px]:grid-cols-1 gap-3">
               <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5">
                 <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted" htmlFor="setup-peer-id">
                   Friend&apos;s peer ID
                 </label>
-                <div className="setup-input-row flex gap-2.5 items-center">
+                <div className="setup-input-row flex gap-2.5 items-center max-[720px]:flex-col max-[720px]:items-stretch">
                   <Input
                     id="setup-peer-id"
                     className="setup-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
@@ -172,7 +172,7 @@ export default function SetupScreen({
                   />
                   <Button
                     type="button"
-                    className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                    className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5] max-[720px]:w-full"
                     onClick={() => connectToPeer(setupPeerId.trim())}
                     disabled={!setupPeerId.trim()}
                   >
@@ -189,7 +189,7 @@ export default function SetupScreen({
               </div>
               <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5">
                 <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted">Your ID</label>
-                <div className="setup-input-row flex gap-2.5 items-center">
+                <div className="setup-input-row flex gap-2.5 items-center max-[720px]:flex-col max-[720px]:items-stretch">
                   <Input
                     className="setup-input w-full p-3 text-[13px] leading-[1.4] shadow-none"
                     type="text"
@@ -198,7 +198,7 @@ export default function SetupScreen({
                   />
                   <Button
                     type="button"
-                    className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                    className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg max-[720px]:w-full"
                     onClick={handleCopyPeerId}
                     disabled={!peer?.id}
                   >
@@ -210,17 +210,17 @@ export default function SetupScreen({
                 </div>
               </div>
             </div>
-            <div className="setup-actions flex gap-2.5 justify-end flex-wrap">
+            <div className="setup-actions flex gap-2.5 justify-end max-[720px]:justify-stretch flex-wrap">
               <Button
                 type="button"
-                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg max-[720px]:flex-[1_1_100%]"
                 onClick={() => setSetupStep("deck")}
               >
                 Back
               </Button>
               <Button
                 type="button"
-                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5] max-[720px]:flex-[1_1_100%]"
                 onClick={onSetupComplete}
                 disabled={deckNames.length === 0}
               >

@@ -63,9 +63,9 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
   };
 
   return (
-    <div className="counter-controls-panel win-panel fixed top-1/2 left-1/2 z-(--z-counter-panel) min-w-[320px] max-w-[400px] -translate-x-1/2 -translate-y-1/2 p-3.5">
-      <div className="counter-controls-header win-titlebar -mx-3.5 -mt-3.5 mb-3 flex items-center justify-between px-2.5 py-1.5">
-        <h4 className="m-0 text-[13px] text-white">Manage Counters</h4>
+    <div className="counter-controls-panel win-panel fixed top-1/2 left-1/2 z-(--z-counter-panel) min-w-[320px] max-w-[400px] max-[720px]:w-[calc(100vw-24px)] max-[720px]:max-w-none max-[720px]:min-w-0 max-[720px]:max-h-[calc(100vh-24px)] max-[720px]:overflow-y-auto -translate-x-1/2 -translate-y-1/2 p-3.5 max-[720px]:p-3">
+      <div className="counter-controls-header win-titlebar -mx-3.5 -mt-3.5 mb-3 max-[720px]:mb-3 flex items-center justify-between px-2.5 py-1.5">
+        <h4 className="m-0 text-[13px] max-[720px]:text-[14px] text-white">Manage Counters</h4>
         <Button
           variant="bevel"
           onClick={onClose}
@@ -89,14 +89,14 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
                 <div className="flex items-center gap-1">
                   <div className="flex items-center gap-1.5">
                     <Button
-                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
+                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none hover:bg-[#ffe6e6]"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) - 1 })}
                     >
                       −
                     </Button>
                     <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.power || 0}</span>
                     <Button
-                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
+                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none hover:bg-[#e6f0ff]"
                       onClick={() => updateCounter(index, { power: (counter.power || 0) + 1 })}
                     >
                       +
@@ -105,14 +105,14 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
                   <span className="px-0.5 text-sm font-bold text-win-text-muted">/</span>
                   <div className="flex items-center gap-1.5">
                     <Button
-                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
+                      className="counter-btn minus h-7 w-7 p-0 text-base leading-none hover:bg-[#ffe6e6]"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) - 1 })}
                     >
                       −
                     </Button>
                     <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.toughness || 0}</span>
                     <Button
-                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
+                      className="counter-btn plus h-7 w-7 p-0 text-base leading-none hover:bg-[#e6f0ff]"
                       onClick={() => updateCounter(index, { toughness: (counter.toughness || 0) + 1 })}
                     >
                       +
@@ -122,14 +122,14 @@ const CounterControls = ({ currentCounters, onUpdateCounters, onClose }: Counter
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Button
-                    className="counter-btn minus h-7 w-7 p-0 text-base leading-none"
+                    className="counter-btn minus h-7 w-7 p-0 text-base leading-none hover:bg-[#ffe6e6]"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) - 1 })}
                   >
                     −
                   </Button>
                   <span className="min-w-[24px] text-center text-sm font-bold text-win-text">{counter.value || 0}</span>
                   <Button
-                    className="counter-btn plus h-7 w-7 p-0 text-base leading-none"
+                    className="counter-btn plus h-7 w-7 p-0 text-base leading-none hover:bg-[#e6f0ff]"
                     onClick={() => updateCounter(index, { value: (counter.value || 0) + 1 })}
                   >
                     +

@@ -90,7 +90,7 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
   return (
     <div className="peer-connect-modal flex flex-col gap-3">
       <form
-        className="peer-connection peer-connection--modal grid grid-cols-[1fr_auto] gap-1"
+        className="peer-connection peer-connection--modal grid grid-cols-[1fr_auto] max-[720px]:grid-cols-1 gap-1"
         onSubmit={(event) => {
           event.preventDefault();
           if (!trimmedValue) return;
@@ -104,7 +104,11 @@ const ConnectModal = ({ onConnect }: ConnectModalProps) => {
           onChange={(event) => setValue(event.target.value)}
           placeholder="Friend's peer ID"
         />
-        <button className="success" type="submit" disabled={!trimmedValue}>
+        <button
+          className="rounded-sm border-2 border-black [border-color:#ffffff_#5b5b5b_#5b5b5b_#ffffff] bg-win-button px-3 py-1.5 text-[11px] font-semibold text-win-text hover:bg-win-hover active:[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] active:[box-shadow:inset_1px_1px_0_#9a9a9a,inset_-1px_-1px_0_#ffffff] disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit"
+          disabled={!trimmedValue}
+        >
           Connect
         </button>
       </form>
@@ -173,7 +177,7 @@ const CardSearchModal = ({
   return (
     <div className="card-search-panel card-search-panel--modal flex flex-col gap-3 w-[min(980px,92vw)] max-h-[min(80vh,720px)]">
       <form
-        className="card-search-controls card-search-controls--modal grid grid-cols-[1fr_auto] gap-2"
+        className="card-search-controls card-search-controls--modal grid grid-cols-[1fr_auto] max-[720px]:grid-cols-1 gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           if (!hasQuery || !filteredCards.length) {
@@ -195,7 +199,7 @@ const CardSearchModal = ({
           aria-label="Search cards"
         />
         <button
-          className="success"
+          className="rounded-sm border-2 border-black [border-color:#ffffff_#5b5b5b_#5b5b5b_#ffffff] bg-win-button px-3 py-1.5 text-[11px] font-semibold text-win-text hover:bg-win-hover active:[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] active:[box-shadow:inset_1px_1px_0_#9a9a9a,inset_-1px_-1px_0_#ffffff] disabled:opacity-50 disabled:cursor-not-allowed"
           title="Add top match"
           type="submit"
           disabled={!hasQuery || !filteredCards.length}
@@ -221,7 +225,7 @@ const CardSearchModal = ({
               <button
                 key={card.id}
                 type="button"
-                className="card-search-item win-bevel flex flex-col gap-1 rounded bg-win-surface p-1 text-center cursor-pointer transition-[transform,box-shadow] duration-150 relative overflow-visible hover:bg-white focus-visible:bg-white focus-visible:outline-none"
+                className="card-search-item group win-bevel flex flex-col gap-1 rounded bg-win-surface p-1 text-center cursor-pointer transition-[transform,box-shadow] duration-150 relative overflow-visible hover:bg-white focus-visible:bg-white focus-visible:outline-none"
                 onClick={() => addCardToHand(card)}
                 onMouseEnter={(event) => {
                   setPreviewCard(card);
@@ -236,11 +240,11 @@ const CardSearchModal = ({
                 <img className="w-full h-auto rounded-[6px] object-cover shadow-[0_2px_6px_rgba(0,0,0,0.12)]" src={image} alt={card.name} />
                 <span className="text-[9px] text-[#374151] leading-[1.2]">{card.name}</span>
                 {showTooltip && (
-                  <div className="card-search-tooltip fixed left-0 top-0 z-(--z-tooltip) w-[min(260px,60vw)] rounded-sm border border-black bg-[#ffffe1] px-3 py-2.5 text-left text-[10px] leading-[1.35] text-win-text opacity-0 pointer-events-none -translate-y-1 transition-[opacity,transform] duration-150 shadow-none" role="tooltip">
+                  <div className="card-search-tooltip fixed left-0 top-0 z-(--z-tooltip) w-[min(260px,60vw)] rounded-sm border border-black bg-[#ffffe1] px-3 py-2.5 text-left text-[10px] leading-[1.35] text-win-text opacity-0 pointer-events-none -translate-y-1 transition-[opacity,transform] duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0 shadow-none" role="tooltip">
                     {tooltipFaces.map((face, index) => (
                       <div
                         key={`${card.id}-face-${index}`}
-                        className="card-search-tooltip__face"
+                        className={`card-search-tooltip__face ${index > 0 ? "mt-2 border-t border-black/10 pt-2" : ""}`}
                       >
                         <div className="card-search-tooltip__header flex justify-between gap-2 font-bold mb-1">
                           <span className="card-search-tooltip__name text-[11px]">
@@ -280,7 +284,7 @@ const CardSearchModal = ({
         </div>
       </div>
       {isCommandPressed && previewImage && (
-        <div className="card-search-zoom fixed top-3 right-3 z-(--z-card-search-zoom) h-[420px] rounded-xl border border-black/20 bg-white p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.25)] pointer-events-none">
+        <div className="card-search-zoom fixed top-3 right-3 z-(--z-card-search-zoom) h-[420px] max-[720px]:h-[min(45vh,320px)] rounded-xl border border-black/20 bg-white p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.25)] pointer-events-none">
           <img className="h-full w-auto rounded-lg block" src={previewImage} alt={previewCard?.name ?? "Card preview"} />
         </div>
       )}
@@ -379,6 +383,10 @@ export function SelectionPanel({
 
   const deckCount = deck?.length ?? 0;
   const canCopyPeerId = Boolean(peer?.id);
+  const isSelectMode = mode === "select";
+  const isTextMode = mode === "create" && shapeType === "text";
+  const isTokenMode = mode === "create" && shapeType === "token";
+  const isRectangleMode = mode === "create" && shapeType === "rectangle";
 
   const handleCopyPeerId = () => {
     if (!peer?.id) return;
@@ -419,7 +427,7 @@ export function SelectionPanel({
 
   return (
     <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
-      <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4">
+      <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4 max-[720px]:top-3 max-[720px]:left-3 max-[720px]:flex-col max-[720px]:items-start">
         <button
           className="selection-panel__pill"
           onClick={() =>
@@ -453,10 +461,10 @@ export function SelectionPanel({
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--top-right absolute flex items-center gap-2.5 pointer-events-auto top-4 right-4 justify-end">
+      <div className="selection-panel__group selection-panel__group--top-right absolute flex items-center gap-2.5 pointer-events-auto top-4 right-4 justify-end max-[720px]:top-3 max-[720px]:right-3 max-[720px]:flex-col max-[720px]:items-end">
         <div className="peer-id-inline flex items-center gap-1.5 text-xs font-semibold text-win-text">
           <span className="peer-id-inline__label lowercase font-semibold">id:</span>
-          <span className="peer-id-inline__value font-mono-win text-[11px] max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap">
+          <span className="peer-id-inline__value font-mono-win text-[11px] max-w-[240px] max-[720px]:max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap">
             {peer?.id ?? "waiting..."}
           </span>
         </div>
@@ -469,13 +477,13 @@ export function SelectionPanel({
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--left absolute flex flex-col items-start gap-3.5 pointer-events-auto top-[130px] left-4">
+      <div className="selection-panel__group selection-panel__group--left absolute flex flex-col items-start gap-3.5 pointer-events-auto top-[130px] left-4 max-[720px]:top-[110px] max-[720px]:left-3">
         <button className="selection-panel__pill danger" onClick={onMulligan}>
           Mulligan
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--left-deck absolute flex flex-col items-start gap-2.5 pointer-events-auto left-4 bottom-[120px]">
+      <div className="selection-panel__group selection-panel__group--left-deck absolute flex flex-col items-start gap-2.5 pointer-events-auto left-4 bottom-[120px] max-[900px]:bottom-[100px] max-[720px]:left-3 max-[720px]:bottom-[90px]">
         <button className="selection-panel__pill" onClick={onShuffleDeck}>
           Shuffle
         </button>
@@ -488,7 +496,7 @@ export function SelectionPanel({
             Search
           </button>
         )}
-        <button className="deck-draw-button win-bevel flex h-[150px] w-[120px] flex-col items-center justify-center gap-1.5 rounded-lg bg-win-hover font-bold text-win-text shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#9a9a9a] transition-[background,border-color] duration-100 hover:bg-[#f5f5f5] active:win-bevel-pressed" onClick={onDrawCard}>
+        <button className="deck-draw-button win-bevel flex h-[150px] w-[120px] max-[900px]:h-[135px] max-[900px]:w-[110px] max-[720px]:h-[120px] max-[720px]:w-24 flex-col items-center justify-center gap-1.5 rounded-lg bg-win-hover font-bold text-win-text shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#9a9a9a] transition-[background,border-color] duration-100 hover:bg-[#f5f5f5] active:win-bevel-pressed" onClick={onDrawCard}>
           <span className="deck-count text-base text-win-text">{deckCount}</span>
           <span className="deck-label inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.04em] text-win-text">
             Draw
@@ -497,64 +505,96 @@ export function SelectionPanel({
         </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--right absolute flex flex-col items-center gap-3 pointer-events-auto top-[140px] right-4">
-          <div className="shape-type-options shape-type-options--vertical flex flex-col items-center gap-2.5">
-          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Select / Move">
+      <div className="selection-panel__group selection-panel__group--right absolute flex flex-col items-center gap-3 pointer-events-auto top-[140px] right-4 max-[720px]:top-[110px] max-[720px]:right-3">
+        <div className="shape-type-options shape-type-options--vertical flex flex-col items-center gap-2.5">
+          <div
+            className={`shape-type-option win-bevel-raised relative flex h-14 min-h-[44px] w-14 min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel ${
+              isSelectMode
+                ? "[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] [box-shadow:inset_1px_1px_0_#8a8a8a,inset_-1px_-1px_0_#f6f6f6]"
+                : ""
+            }`}
+            title="Select / Move"
+          >
             <input
+              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
               type="radio"
               id="select"
               name="action"
               value="select"
-              checked={mode === "select"}
+              checked={isSelectMode}
               onChange={() => setMode("select")}
             />
-            <label htmlFor="select" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+            <label htmlFor="select" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isSelectMode ? "font-bold text-black" : ""}`}>
               <span className="tool-icon text-[18px] font-semibold leading-none">&gt;</span>
             </label>
           </div>
-          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Text">
+          <div
+            className={`shape-type-option win-bevel-raised relative flex h-14 min-h-[44px] w-14 min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel ${
+              isTextMode
+                ? "[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] [box-shadow:inset_1px_1px_0_#8a8a8a,inset_-1px_-1px_0_#f6f6f6]"
+                : ""
+            }`}
+            title="Text"
+          >
             <input
+              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
               type="radio"
               id="create"
               name="action"
               value="create"
-              checked={mode === "create" && shapeType === "text"}
+              checked={isTextMode}
               onChange={() => {
                 setMode("create");
                 setShapeType("text");
               }}
             />
-            <label htmlFor="create" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+            <label htmlFor="create" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isTextMode ? "font-bold text-black" : ""}`}>
               <span className="tool-icon text-[18px] font-semibold leading-none">T</span>
             </label>
           </div>
-          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Token">
+          <div
+            className={`shape-type-option win-bevel-raised relative flex h-14 min-h-[44px] w-14 min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel ${
+              isTokenMode
+                ? "[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] [box-shadow:inset_1px_1px_0_#8a8a8a,inset_-1px_-1px_0_#f6f6f6]"
+                : ""
+            }`}
+            title="Token"
+          >
             <input
+              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
               type="radio"
               id="add"
               name="action"
-              checked={mode === "create" && shapeType === "token"}
+              checked={isTokenMode}
               onChange={() => {
                 setMode("create");
                 setShapeType("token");
               }}
             />
-            <label htmlFor="add" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+            <label htmlFor="add" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isTokenMode ? "font-bold text-black" : ""}`}>
               <span className="tool-icon text-[18px] font-semibold leading-none">O</span>
             </label>
           </div>
-          <div className="shape-type-option win-bevel-raised relative flex min-h-[44px] min-w-[44px] w-14 h-14 cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel" data-tooltip="Rectangle">
+          <div
+            className={`shape-type-option win-bevel-raised relative flex h-14 min-h-[44px] w-14 min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel ${
+              isRectangleMode
+                ? "[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] [box-shadow:inset_1px_1px_0_#8a8a8a,inset_-1px_-1px_0_#f6f6f6]"
+                : ""
+            }`}
+            title="Rectangle"
+          >
             <input
+              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
               type="radio"
               id="rectangle"
               name="action"
-              checked={mode === "create" && shapeType === "rectangle"}
+              checked={isRectangleMode}
               onChange={() => {
                 setMode("create");
                 setShapeType("rectangle");
               }}
             />
-            <label htmlFor="rectangle" className="flex flex-col items-center gap-0.5 cursor-pointer w-full">
+            <label htmlFor="rectangle" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isRectangleMode ? "font-bold text-black" : ""}`}>
               <span className="tool-icon text-[18px] font-semibold leading-none">[]</span>
             </label>
           </div>

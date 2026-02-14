@@ -76,9 +76,9 @@ function PortalImpl({
   }, [closeOnClickOutside, onClose]);
 
   return (
-    <div className="Modal__overlay fixed inset-0 z-(--z-modal) flex flex-col items-center justify-center bg-black/35 shrink" role="dialog">
+    <div className="Modal__overlay fixed inset-0 z-(--z-modal) flex flex-col items-center justify-center bg-black/35 max-[720px]:p-3 shrink" role="dialog">
       <div
-        className="Modal__modal win-panel relative flex min-h-[100px] min-w-[300px] grow-0 flex-col p-[18px]"
+        className="Modal__modal win-panel relative flex min-h-[100px] min-w-[300px] max-[720px]:min-w-0 max-[720px]:w-full max-[720px]:max-h-[calc(100vh-24px)] max-[720px]:overflow-y-auto grow-0 flex-col p-[18px]"
         tabIndex={-1}
         ref={modalRef}
         style={{

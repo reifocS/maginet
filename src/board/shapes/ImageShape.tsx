@@ -19,7 +19,7 @@ const ImageShape = ({
   return (
     <g {...commonProps}>
       <image
-        className="card-image"
+        className="card-image transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         href={isFlipped ? "https://i.imgur.com/LdOBU1I.jpeg" : src?.[srcIndex]}
         x={x}
         y={y}

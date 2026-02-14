@@ -26,14 +26,14 @@ export default function ActionLog({
 
   return (
     <div
-      className="action-log-container win-panel fixed top-4 right-4 z-50 w-72 overflow-hidden p-2.5"
+      className="action-log-container win-panel fixed top-4 right-4 z-50 w-72 max-[900px]:w-64 max-[720px]:top-[calc(10px+env(safe-area-inset-top))] max-[720px]:right-2.5 max-[720px]:left-2.5 max-[720px]:w-auto max-[720px]:max-h-[30vh] overflow-hidden p-2.5"
       onWheelCapture={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
       <h3 className="action-log-header bg-win-header-bg border-b-2 border-win-border-dark p-2 text-sm font-semibold">
         Action Log
       </h3>
-      <div className="action-log-content max-h-60 overflow-y-auto" ref={scrollRef}>
+      <div className="action-log-content max-h-60 max-[720px]:max-h-[22vh] overflow-y-auto" ref={scrollRef}>
         <div className="flex flex-col gap-2 px-3 pt-2 pb-3">
           {actions.map((action, index) => (
             <div

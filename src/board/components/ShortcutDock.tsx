@@ -22,7 +22,7 @@ export default function ShortcutDock({
       <Button
         type="button"
         variant="bevelRaised"
-        className="shortcut-dock-toggle fixed z-(--z-shortcut-dock) rounded px-2.5 py-1.5 text-xs font-bold font-win text-win-text hover:bg-win-hover"
+        className="shortcut-dock-toggle fixed bottom-[calc(120px+env(safe-area-inset-bottom))] right-[calc(16px+env(safe-area-inset-right))] z-(--z-shortcut-dock) rounded px-2.5 py-1.5 text-xs font-bold font-win text-win-text hover:bg-win-hover"
         onClick={onToggle}
       >
         Shortcuts
@@ -32,7 +32,7 @@ export default function ShortcutDock({
 
   return (
     <div
-      className="shortcut-dock win-panel fixed z-(--z-shortcut-dock) w-[280px] max-h-[calc(100vh-240px)] p-2.5 text-xs overflow-y-auto overflow-x-hidden"
+      className="shortcut-dock win-panel fixed bottom-[calc(120px+env(safe-area-inset-bottom))] right-[calc(16px+env(safe-area-inset-right))] z-(--z-shortcut-dock) w-[280px] max-h-[calc(100vh-240px)] p-2.5 text-xs overflow-y-auto overflow-x-hidden"
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       style={{
