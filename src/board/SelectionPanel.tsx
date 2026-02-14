@@ -75,8 +75,12 @@ const positionCardTooltip = (
     top = modalRect.top + padding;
   }
 
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top}px`;
+  // Modal is transformed for dragging, which makes fixed descendants position
+  // against the modal's coordinate space instead of the viewport.
+  const offsetLeft = modal ? modalRect.left : 0;
+  const offsetTop = modal ? modalRect.top : 0;
+  tooltip.style.left = `${left - offsetLeft}px`;
+  tooltip.style.top = `${top - offsetTop}px`;
 };
 
 type ConnectModalProps = {
