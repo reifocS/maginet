@@ -159,10 +159,6 @@ const CardSearchModal = ({
     };
   }, []);
 
-  React.useEffect(() => {
-    setPreviewCard(null);
-  }, [query]);
-
   const filteredCards = React.useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
@@ -198,7 +194,10 @@ const CardSearchModal = ({
           type="search"
           className="flex-1 w-full px-2 py-1.5 text-[10px]"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setPreviewCard(null);
+          }}
           placeholder="Search card name..."
           aria-label="Search cards"
         />
@@ -472,8 +471,13 @@ export function SelectionPanel({
         <button className="selection-panel__pill" onClick={openConnectModal}>
           Connect
         </button>
+        {isMobile && (
+          <button className="selection-panel__pill danger" onClick={onMulligan}>
+            Mulligan
+          </button>
+        )}
         <button
-          className="help-button inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#666] text-base font-bold shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
+          className="help-button inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#666] text-base font-bold shadow-[0_2px_8px_rgba(0,0,0,0.2)] max-[720px]:hidden"
           onClick={onToggleHelp}
           aria-pressed={showHelp}
           title="Show controls (Press ?). How to play: The rules of Magic stay the same - Maginet just gives you a shared virtual table."
@@ -500,9 +504,21 @@ export function SelectionPanel({
         >
           {copied ? "Copied" : "Copy"}
         </button>
+        <button
+          className="help-button hidden h-7 w-7 items-center justify-center rounded-full border border-[#666] text-base font-bold shadow-[0_2px_8px_rgba(0,0,0,0.2)] max-[720px]:inline-flex"
+          onClick={onToggleHelp}
+          aria-pressed={showHelp}
+          title="Show controls (Press ?). How to play: The rules of Magic stay the same - Maginet just gives you a shared virtual table."
+          style={{
+            background: showHelp ? "#444" : "#fff",
+            color: showHelp ? "#fff" : "#666",
+          }}
+        >
+          ?
+        </button>
       </div>
 
-      <div className="selection-panel__group selection-panel__group--left absolute flex flex-col items-start gap-3.5 pointer-events-auto top-[130px] left-4 max-[720px]:top-[110px] max-[720px]:left-3">
+      <div className="selection-panel__group selection-panel__group--left absolute flex flex-col items-start gap-3.5 pointer-events-auto top-[130px] left-4 max-[720px]:hidden">
         <button className="selection-panel__pill danger" onClick={onMulligan}>
           Mulligan
         </button>
