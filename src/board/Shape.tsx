@@ -39,7 +39,12 @@ export function Shape({
   onToggleTap?: (shapeId: string) => void;
   snapToGrid: (
     point: [number, number],
-    context?: { movingShape: ShapeType; excludeIds?: string[] }
+    context?: {
+      movingShape: ShapeType;
+      excludeIds?: string[];
+      movingShapes?: ShapeType[];
+      dragDelta?: [number, number];
+    }
   ) => [number, number];
 }) {
   const draggingShapeRefs = useRef<Record<string, ShapeType>>({});
@@ -102,9 +107,17 @@ export function Shape({
     const movingShapeIds = selectedShapeIds.includes(shape.id)
       ? selectedShapeIds
       : [shape.id];
+    const movingShapes =
+      movingShapeIds.length > 1
+        ? movingShapeIds
+          .map((id) => draggingShapeRefs.current[id] ?? null)
+          .filter((candidate): candidate is ShapeType => candidate !== null)
+        : undefined;
     const snappedPoint = snapToGrid(rawPoint, {
       movingShape: rDragging.current.shape,
       excludeIds: movingShapeIds,
+      movingShapes,
+      dragDelta: delta as [number, number],
     });
     const snappedDelta = vec.sub(snappedPoint, rDragging.current.shape.point);
 

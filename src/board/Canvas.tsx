@@ -61,6 +61,13 @@ type SmartGuideState = {
   horizontal: number | null;
 };
 
+type SnapContext = {
+  movingShape: Shape;
+  excludeIds?: string[];
+  movingShapes?: Shape[];
+  dragDelta?: [number, number];
+};
+
 type PersistedLocalGameState = {
   version: number;
   savedAt: number;
@@ -662,14 +669,45 @@ function Canvas() {
   const snapPointToGrid = useCallback(
     (
       point: [number, number],
-      context?: { movingShape: Shape; excludeIds?: string[] }
+      context?: SnapContext
     ) => {
       if (!isSnapEnabled || !context) {
         if (context && !isSnapEnabled) clearSmartGuides();
         return point;
       }
 
-      const movingBounds = getShapeBounds(context.movingShape, point);
+      const movingBounds =
+        context.movingShapes &&
+        context.movingShapes.length > 1 &&
+        context.dragDelta
+          ? (() => {
+            const [dx, dy] = context.dragDelta;
+            let left = Number.POSITIVE_INFINITY;
+            let top = Number.POSITIVE_INFINITY;
+            let right = Number.NEGATIVE_INFINITY;
+            let bottom = Number.NEGATIVE_INFINITY;
+
+            for (const movingShape of context.movingShapes) {
+              const bounds = getShapeBounds(movingShape, [
+                movingShape.point[0] + dx,
+                movingShape.point[1] + dy,
+              ]);
+              left = Math.min(left, bounds.left);
+              top = Math.min(top, bounds.top);
+              right = Math.max(right, bounds.right);
+              bottom = Math.max(bottom, bounds.bottom);
+            }
+
+            return {
+              left,
+              top,
+              right,
+              bottom,
+              centerX: (left + right) / 2,
+              centerY: (top + bottom) / 2,
+            };
+          })()
+          : getShapeBounds(context.movingShape, point);
       const movingAnchorsX = [movingBounds.left, movingBounds.centerX, movingBounds.right];
       const movingAnchorsY = [movingBounds.top, movingBounds.centerY, movingBounds.bottom];
       const snapThreshold = OBJECT_SNAP_THRESHOLD_PX / Math.max(camera.z, 0.001);
