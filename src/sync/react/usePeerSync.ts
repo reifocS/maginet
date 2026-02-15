@@ -72,8 +72,7 @@ const selectConnectedPeerSyncUiState = (
 
 export function usePeerSync(options: UsePeerSyncOptions) {
   const { cards, cardState } = options;
-  const { connectToPeer, disconnect, initPeer, sendMessage, peer, error, connections } =
-    usePeerStore();
+  const { connectToPeer, initPeer, sendMessage, peer, error, connections } = usePeerStore();
 
   const peerSyncUiState = useSyncExternalStore(
     subscribePeerSyncUiState,
@@ -137,11 +136,11 @@ export function usePeerSync(options: UsePeerSyncOptions) {
 
   useEffect(() => {
     ensurePeerSyncMessageSubscriptions();
-    initPeer();
+    const releaseRuntimeLease = initPeer();
     return () => {
-      disconnect();
+      releaseRuntimeLease();
     };
-  }, [disconnect, initPeer]);
+  }, [initPeer]);
 
   useEffect(() => {
     if (!cardState.lastAction || !cardState.actionId) return;
