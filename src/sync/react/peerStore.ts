@@ -67,8 +67,6 @@ const syncClient = createSyncClient({
 
 let coreHandlersRegistered = false;
 let channelPluginsRegistered = false;
-let runtimeRefCount = 0;
-let pendingRuntimeStop: ReturnType<typeof setTimeout> | null = null;
 
 const ensureCoreHandlers = () => {
   if (coreHandlersRegistered) return;
@@ -121,16 +119,7 @@ const ensureChannelPlugins = () => {
   );
 };
 
-const clearPendingRuntimeStop = () => {
-  if (!pendingRuntimeStop) return;
-  clearTimeout(pendingRuntimeStop);
-  pendingRuntimeStop = null;
-};
-
-export const acquirePeerRuntime = () => {
-  runtimeRefCount += 1;
-  clearPendingRuntimeStop();
-  if (runtimeRefCount > 1) return;
+const startPeerRuntime = () => {
   ensureCoreHandlers();
   ensureChannelPlugins();
   void syncClient.start().catch((error) => {
@@ -138,16 +127,10 @@ export const acquirePeerRuntime = () => {
   });
 };
 
-export const releasePeerRuntime = () => {
-  runtimeRefCount = Math.max(0, runtimeRefCount - 1);
-  if (runtimeRefCount > 0) return;
-  clearPendingRuntimeStop();
-  pendingRuntimeStop = setTimeout(() => {
-    if (runtimeRefCount > 0) return;
-    void syncClient.stop().catch((error) => {
-      setPeerError(toError(error));
-    });
-  }, 0);
+const stopPeerRuntime = () => {
+  void syncClient.stop().catch((error) => {
+    setPeerError(toError(error));
+  });
 };
 
 export const usePeerStore = create<PeerState>((_, get) => ({
@@ -156,7 +139,7 @@ export const usePeerStore = create<PeerState>((_, get) => ({
   error: null,
 
   initPeer: () => {
-    acquirePeerRuntime();
+    startPeerRuntime();
   },
 
   connectToPeer: (peerId: string) => {
@@ -184,7 +167,7 @@ export const usePeerStore = create<PeerState>((_, get) => ({
       return;
     }
 
-    releasePeerRuntime();
+    stopPeerRuntime();
   },
 
   onMessage: (type: string, callback) => {

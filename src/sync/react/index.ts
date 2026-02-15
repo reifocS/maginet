@@ -1,7 +1,5 @@
 export {
   usePeerStore,
-  acquirePeerRuntime,
-  releasePeerRuntime,
   type Message,
   type MessageCallback,
   type PeerState,

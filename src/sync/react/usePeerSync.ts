@@ -9,8 +9,6 @@ import {
 } from "../../board/constants/game";
 import { describeRandomEvent, generatePlayerName } from "../../utils/game";
 import {
-  acquirePeerRuntime,
-  releasePeerRuntime,
   usePeerStore,
 } from "./peerStore";
 import {
@@ -74,7 +72,8 @@ const selectConnectedPeerSyncUiState = (
 
 export function usePeerSync(options: UsePeerSyncOptions) {
   const { cards, cardState } = options;
-  const { connectToPeer, sendMessage, peer, error, connections } = usePeerStore();
+  const { connectToPeer, disconnect, initPeer, sendMessage, peer, error, connections } =
+    usePeerStore();
 
   const peerSyncUiState = useSyncExternalStore(
     subscribePeerSyncUiState,
@@ -138,11 +137,11 @@ export function usePeerSync(options: UsePeerSyncOptions) {
 
   useEffect(() => {
     ensurePeerSyncMessageSubscriptions();
-    acquirePeerRuntime();
+    initPeer();
     return () => {
-      releasePeerRuntime();
+      disconnect();
     };
-  }, []);
+  }, [disconnect, initPeer]);
 
   useEffect(() => {
     if (!cardState.lastAction || !cardState.actionId) return;
