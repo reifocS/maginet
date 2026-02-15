@@ -310,9 +310,7 @@ export function SelectionPanel({
   deck,
   shapeType,
   setShapeType,
-  isGridVisible,
   isSnapEnabled,
-  onToggleGrid,
   onToggleSnap,
 }: {
   onDrawCard: () => void;
@@ -340,9 +338,7 @@ export function SelectionPanel({
   rollD20: () => void;
   pickStarter: () => void;
   untapAll: () => void;
-  isGridVisible: boolean;
   isSnapEnabled: boolean;
-  onToggleGrid: () => void;
   onToggleSnap: () => void;
 }) {
   // Peer connection state
@@ -640,16 +636,7 @@ export function SelectionPanel({
             </label>
           </div>
         </div>
-        <div className="selection-panel__grid-controls flex flex-col items-center gap-1.5">
-          <button
-            type="button"
-            className={`selection-panel__pill min-w-[56px] text-center px-2 py-1.5 ${isGridVisible ? "is-active" : ""}`}
-            onClick={onToggleGrid}
-            aria-pressed={isGridVisible}
-            title="Toggle grid"
-          >
-            Grid
-          </button>
+        <div className="selection-panel__snap-controls flex flex-col items-center gap-1.5">
           <button
             type="button"
             className={`selection-panel__pill min-w-[56px] text-center px-2 py-1.5 ${isSnapEnabled ? "is-active" : ""}`}

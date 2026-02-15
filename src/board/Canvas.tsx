@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
 
 import { Shape as ShapeComponent } from "./Shape";
-import Grid from "./Grid";
 import { DOMVector, screenToCanvas } from "../utils/vec";
 import Hand from "./Hand";
 import ContextMenu from "./ContextMenu";
@@ -42,7 +41,6 @@ import {
 
 import {
   HEARTBEAT_STALE_MS,
-  GRID_SIZE,
   CARD_PREVIEW_SIZE,
   CARD_BACK_URL,
 } from "./constants/game";
@@ -236,7 +234,6 @@ function Canvas() {
   const [isShortcutDockOpen, setIsShortcutDockOpen] = useState(
     getInitialShortcutDockOpen
   );
-  const [isGridVisible, setIsGridVisible] = useState(false);
   const [isSnapEnabled, setIsSnapEnabled] = useState(false);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window === "undefined" ? 0 : window.innerWidth,
@@ -1224,31 +1221,6 @@ function Canvas() {
   }, [camera, viewportSize]);
 
 
-  const gridBounds = useMemo(() => {
-    if (!isGridVisible || viewportSize.width === 0 || viewportSize.height === 0) {
-      return null;
-    }
-    const topLeft = screenToWorld([0, 0], camera);
-    const bottomRight = screenToWorld(
-      [viewportSize.width, viewportSize.height],
-      camera
-    );
-    const minX = Math.min(topLeft[0], bottomRight[0]);
-    const maxX = Math.max(topLeft[0], bottomRight[0]);
-    const minY = Math.min(topLeft[1], bottomRight[1]);
-    const maxY = Math.max(topLeft[1], bottomRight[1]);
-    const startX = Math.floor(minX / GRID_SIZE) * GRID_SIZE;
-    const startY = Math.floor(minY / GRID_SIZE) * GRID_SIZE;
-    const endX = Math.ceil(maxX / GRID_SIZE) * GRID_SIZE;
-    const endY = Math.ceil(maxY / GRID_SIZE) * GRID_SIZE;
-    return {
-      startX,
-      startY,
-      width: Math.max(endX - startX, GRID_SIZE),
-      height: Math.max(endY - startY, GRID_SIZE),
-    };
-  }, [camera, isGridVisible, viewportSize]);
-
   if (!isSetupComplete) {
     return (
       <SetupScreen
@@ -1292,21 +1264,6 @@ function Canvas() {
           onPointerCancel={onPointerUpCanvas}
         >
           <g style={{ transform }}>
-            {isGridVisible && gridBounds && (
-              <g
-                className="pointer-events-none"
-                transform={`translate(${gridBounds.startX} ${gridBounds.startY})`}
-                pointerEvents="none"
-              >
-                <Grid
-                  width={gridBounds.width}
-                  height={gridBounds.height}
-                  gridSize={GRID_SIZE}
-                  stroke="#6f5b3d"
-                  opacity={0.25}
-                />
-              </g>
-            )}
             {isSnapEnabled &&
               viewportWorldBounds &&
               (smartGuides.vertical !== null || smartGuides.horizontal !== null) && (
@@ -1468,9 +1425,7 @@ function Canvas() {
           rollD20={() => rollDie(20)}
           pickStarter={pickStarter}
           untapAll={untapAll}
-          isGridVisible={isGridVisible}
           isSnapEnabled={isSnapEnabled}
-          onToggleGrid={() => setIsGridVisible((prev) => !prev)}
           onToggleSnap={() => setIsSnapEnabled((prev) => !prev)}
         />
       </div>

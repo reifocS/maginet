@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { enterTable } from "./utils/table";
 
 test.describe("Canvas controls", () => {
-  test("can switch tools and toggle grid/snap/help controls", async ({ page }) => {
+  test("can switch tools and toggle snap/help controls", async ({ page }) => {
     await enterTable(page);
     const hideShortcutsButton = page
       .getByRole("button", { name: "Hide shortcuts" })
@@ -30,13 +30,7 @@ test.describe("Canvas controls", () => {
     await page.locator('.shape-type-option[title="Select / Move"]').click();
     await expect(selectTool).toBeChecked();
 
-    const gridButton = page.getByRole("button", { name: "Grid" });
     const snapButton = page.getByRole("button", { name: "Snap" });
-
-    await gridButton.click();
-    await expect(gridButton).toHaveClass(/is-active/);
-    await gridButton.click();
-    await expect(gridButton).not.toHaveClass(/is-active/);
 
     await snapButton.click();
     await expect(snapButton).toHaveClass(/is-active/);

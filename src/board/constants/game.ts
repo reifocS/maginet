@@ -3,7 +3,6 @@ import type { ShortcutSection } from "../../types/canvas";
 export const HEARTBEAT_INTERVAL_MS = 5000;
 export const HEARTBEAT_STALE_MS = HEARTBEAT_INTERVAL_MS * 3;
 export const MAX_ACTION_LOG_ENTRIES = 50;
-export const GRID_SIZE = 50;
 export const CARD_PREVIEW_SIZE: [number, number] = [100, 100];
 export const CARD_BACK_URL = "https://i.imgur.com/LdOBU1I.jpeg";
 
