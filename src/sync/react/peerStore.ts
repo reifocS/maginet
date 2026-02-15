@@ -20,7 +20,7 @@ export interface PeerState {
   peer: Peer | null;
   connections: Map<string, DataConnection>;
   error: Error | null;
-  initPeer: () => void;
+  initPeer: () => () => void;
   connectToPeer: (peerId: string) => void;
   sendMessage: (message: Message, peerId?: string) => void;
   disconnect: (peerId?: string) => void;
@@ -67,6 +67,7 @@ const syncClient = createSyncClient({
 
 let coreHandlersRegistered = false;
 let channelPluginsRegistered = false;
+const runtimeLeases = new Set<symbol>();
 
 const ensureCoreHandlers = () => {
   if (coreHandlersRegistered) return;
@@ -133,13 +134,29 @@ const stopPeerRuntime = () => {
   });
 };
 
+const acquirePeerRuntimeLease = () => {
+  const leaseId = Symbol("peer-runtime-lease");
+  runtimeLeases.add(leaseId);
+  startPeerRuntime();
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    runtimeLeases.delete(leaseId);
+    if (runtimeLeases.size === 0) {
+      stopPeerRuntime();
+    }
+  };
+};
+
 export const usePeerStore = create<PeerState>((_, get) => ({
   peer: null,
   connections: new Map(),
   error: null,
 
   initPeer: () => {
-    startPeerRuntime();
+    return acquirePeerRuntimeLease();
   },
 
   connectToPeer: (peerId: string) => {
@@ -167,6 +184,7 @@ export const usePeerStore = create<PeerState>((_, get) => ({
       return;
     }
 
+    runtimeLeases.clear();
     stopPeerRuntime();
   },
 
