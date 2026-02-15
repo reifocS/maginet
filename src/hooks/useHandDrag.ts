@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { Camera, Card, Shape } from "../types/canvas";
 import type { DragCardMeta, HandDragState, DragPreview } from "../types/canvas";
-import type { CardAction, CardState } from "./useCardReducer";
+import type { CardAction } from "./useCardReducer";
 import { screenToCanvas } from "../utils/vec";
 import { generateId } from "../utils/math";
 
 interface UseHandDragOptions {
   svgRef: React.RefObject<SVGSVGElement | null>;
   cameraRef: React.RefObject<Camera>;
-  cardStateRef: React.RefObject<CardState>;
   snapPointToGrid: (point: [number, number]) => [number, number];
   dispatch: React.Dispatch<CardAction>;
   setShapes: (shapes: Shape[] | ((shapes: Shape[]) => Shape[])) => void;
@@ -18,7 +17,6 @@ interface UseHandDragOptions {
 export function useHandDrag({
   svgRef,
   cameraRef,
-  cardStateRef,
   snapPointToGrid,
   dispatch,
   setShapes,
@@ -122,7 +120,7 @@ export function useHandDrag({
   ) => {
     const { x, y } = screenToCanvas({ x: clientX, y: clientY }, cameraRef.current);
     const [snappedX, snappedY] = snapPointToGrid([x, y]);
-    const card = cardStateRef.current.cards.find((c) => c.id === cardId);
+    const card = cards.find((c) => c.id === cardId);
     if (!card) return false;
     dispatch({ type: "PLAY_CARD", payload: [cardId] });
     setShapes((prevShapes) => [

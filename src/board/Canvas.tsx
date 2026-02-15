@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
 
 import { Shape as ShapeComponent } from "./Shape";
-import Grid from "./Grid";
 import { DOMVector, screenToCanvas } from "../utils/vec";
 import Hand from "./Hand";
 import ContextMenu from "./ContextMenu";
@@ -42,7 +41,6 @@ import {
 
 import {
   HEARTBEAT_STALE_MS,
-  GRID_SIZE,
   CARD_PREVIEW_SIZE,
   CARD_BACK_URL,
 } from "./constants/game";
@@ -51,12 +49,21 @@ const SHORTCUT_DOCK_OPEN_STORAGE_KEY = "maginet:shortcut-dock-open";
 const OBJECT_SNAP_THRESHOLD_PX = 10;
 const LOCAL_GAME_STATE_STORAGE_KEY_PREFIX = "maginet:local-game-state:v1";
 const LOCAL_GAME_STATE_SESSION_KEY = "maginet:local-session-id:v1";
+const LOCAL_GAME_STATE_SESSION_CHANNEL = "maginet:local-session:v1";
+const LOCAL_GAME_STATE_SESSION_PROBE_MS = 140;
 const LOCAL_GAME_STATE_VERSION = 1;
 const LOCAL_GAME_STATE_TTL_MS = 1000 * 60 * 60 * 12;
 
 type SmartGuideState = {
   vertical: number | null;
   horizontal: number | null;
+};
+
+type SnapContext = {
+  movingShape: Shape;
+  excludeIds?: string[];
+  movingShapes?: Shape[];
+  dragDelta?: [number, number];
 };
 
 type PersistedLocalGameState = {
@@ -66,6 +73,12 @@ type PersistedLocalGameState = {
   cardState: CardState;
   shapes: Shape[];
   connectedPeerIds: string[];
+};
+
+type LocalStateSessionMessage = {
+  type: "hello" | "in-use";
+  sessionId: string;
+  instanceId: string;
 };
 
 const normalizeDeckParam = (value: string) =>
@@ -78,20 +91,33 @@ const createLocalSessionId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const getSessionScopedStateStorageKey = () => {
-  if (typeof window === "undefined") return LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
+const dedupeShapesById = (shapeList: Shape[]) => {
+  const byId = new Map<string, Shape>();
+  shapeList.forEach((shape) => {
+    if (!shape || typeof shape !== "object" || typeof shape.id !== "string") return;
+    byId.set(shape.id, shape);
+  });
+  return Array.from(byId.values());
+};
+
+const getOrCreateLocalSessionId = () => {
+  if (typeof window === "undefined") return null;
   try {
     let sessionId = window.sessionStorage.getItem(LOCAL_GAME_STATE_SESSION_KEY);
     if (!sessionId) {
       sessionId = createLocalSessionId();
       window.sessionStorage.setItem(LOCAL_GAME_STATE_SESSION_KEY, sessionId);
     }
-    return `${LOCAL_GAME_STATE_STORAGE_KEY_PREFIX}:${sessionId}`;
+    return sessionId;
   } catch {
-    // Fallback for restricted environments where sessionStorage is unavailable.
-    return LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
+    return null;
   }
 };
+
+const getSessionScopedStateStorageKey = (sessionId: string | null) =>
+  sessionId
+    ? `${LOCAL_GAME_STATE_STORAGE_KEY_PREFIX}:${sessionId}`
+    : LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
 
 const parsePersistedLocalGameState = (
   raw: string
@@ -130,7 +156,7 @@ const parsePersistedLocalGameState = (
             ? cardStateValue.actionId
             : undefined,
       },
-      shapes: value.shapes as Shape[],
+      shapes: dedupeShapesById(value.shapes as Shape[]),
       connectedPeerIds: Array.isArray(value.connectedPeerIds)
         ? value.connectedPeerIds.filter((id): id is string => typeof id === "string")
         : [],
@@ -208,7 +234,6 @@ function Canvas() {
   const [isShortcutDockOpen, setIsShortcutDockOpen] = useState(
     getInitialShortcutDockOpen
   );
-  const [isGridVisible, setIsGridVisible] = useState(false);
   const [isSnapEnabled, setIsSnapEnabled] = useState(false);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window === "undefined" ? 0 : window.innerWidth,
@@ -227,6 +252,8 @@ function Canvas() {
   const [sessionHydrationStatus, setSessionHydrationStatus] = useState<
     "pending" | "restored" | "none"
   >("pending");
+  const [localStateStorageKey, setLocalStateStorageKey] = useState<string | null>(null);
+  const [isLocalStateKeyReady, setIsLocalStateKeyReady] = useState(false);
 
   // Refs
   const ref = useRef<SVGSVGElement>(null);
@@ -235,7 +262,7 @@ function Canvas() {
   const drawCardRef = useRef<() => void>(() => {});
   const engageCardRef = useRef<() => void>(() => {});
   const applyZoomStepRef = useRef(applyZoomStep);
-  const [localStateStorageKey] = useState(getSessionScopedStateStorageKey);
+  const localSessionInstanceIdRef = useRef(createLocalSessionId());
   const reconnectPeerIdsRef = useRef<string[]>([]);
   const attemptedReconnectRef = useRef(false);
   applyZoomStepRef.current = applyZoomStep;
@@ -314,11 +341,6 @@ function Canvas() {
     deck: [],
   });
   const { cards, deck } = cardState;
-  const cardStateRef = useRef(cardState);
-
-  useEffect(() => {
-    cardStateRef.current = cardState;
-  }, [cardState]);
 
   // Peer sync
   const {
@@ -402,9 +424,91 @@ function Canvas() {
     }
   }, [isShortcutDockOpen]);
 
+  // Build a session-scoped persistence key and resolve duplicated-tab collisions.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setLocalStateStorageKey(getSessionScopedStateStorageKey(null));
+      setIsLocalStateKeyReady(true);
+      return;
+    }
+
+    let isCancelled = false;
+    let probeTimeoutId: number | null = null;
+    let channel: BroadcastChannel | null = null;
+    const instanceId = localSessionInstanceIdRef.current;
+    let activeSessionId = getOrCreateLocalSessionId();
+    let conflictDetected = false;
+
+    const applyStorageKey = (sessionId: string | null) => {
+      if (isCancelled) return;
+      setLocalStateStorageKey(getSessionScopedStateStorageKey(sessionId));
+      setIsLocalStateKeyReady(true);
+    };
+
+    const rotateSessionId = () => {
+      const nextSessionId = createLocalSessionId();
+      try {
+        window.sessionStorage.setItem(LOCAL_GAME_STATE_SESSION_KEY, nextSessionId);
+      } catch {
+        // If sessionStorage is unavailable we keep the shared fallback key.
+        return null;
+      }
+      return nextSessionId;
+    };
+
+    if (!activeSessionId || typeof BroadcastChannel === "undefined") {
+      applyStorageKey(activeSessionId);
+      return;
+    }
+
+    channel = new BroadcastChannel(LOCAL_GAME_STATE_SESSION_CHANNEL);
+    channel.onmessage = (event: MessageEvent<LocalStateSessionMessage>) => {
+      const message = event.data;
+      if (!message || typeof message !== "object") return;
+      if (message.sessionId !== activeSessionId) return;
+      if (message.instanceId === instanceId) return;
+
+      if (message.type === "hello") {
+        channel?.postMessage({
+          type: "in-use",
+          sessionId: activeSessionId,
+          instanceId,
+        } satisfies LocalStateSessionMessage);
+        return;
+      }
+
+      if (message.type === "in-use") {
+        conflictDetected = true;
+      }
+    };
+
+    channel.postMessage({
+      type: "hello",
+      sessionId: activeSessionId,
+      instanceId,
+    } satisfies LocalStateSessionMessage);
+
+    probeTimeoutId = window.setTimeout(() => {
+      if (isCancelled) return;
+      if (conflictDetected) {
+        activeSessionId = rotateSessionId();
+      }
+      applyStorageKey(activeSessionId);
+    }, LOCAL_GAME_STATE_SESSION_PROBE_MS);
+
+    return () => {
+      isCancelled = true;
+      if (probeTimeoutId !== null) {
+        window.clearTimeout(probeTimeoutId);
+      }
+      channel?.close();
+    };
+  }, []);
+
   // Restore local state after refresh (deck/hand + board shapes)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!isLocalStateKeyReady || !localStateStorageKey) return;
 
     reconnectPeerIdsRef.current = [];
     attemptedReconnectRef.current = false;
@@ -454,7 +558,7 @@ function Canvas() {
     toast("Recovered your previous local table state", {
       id: "local-state-recovered",
     });
-  }, [dispatch, localStateStorageKey, normalizedDeckParam]);
+  }, [dispatch, isLocalStateKeyReady, localStateStorageKey, normalizedDeckParam]);
 
   // Reconnect to previous peers after a refresh, when possible.
   useEffect(() => {
@@ -474,39 +578,62 @@ function Canvas() {
     }
   }, [connectToPeer, connections, peer?.id, sessionHydrationStatus]);
 
+  const persistLocalGameState = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (!isLocalStateKeyReady || !localStateStorageKey) return;
+    if (sessionHydrationStatus === "pending" || !normalizedDeckParam) return;
+
+    const snapshot: PersistedLocalGameState = {
+      version: LOCAL_GAME_STATE_VERSION,
+      savedAt: Date.now(),
+      deckParam: normalizedDeckParam,
+      cardState: {
+        cards: cardState.cards,
+        deck: cardState.deck,
+        lastAction: cardState.lastAction,
+        actionId: cardState.actionId,
+      },
+      shapes: dedupeShapesById(shapes),
+      connectedPeerIds: Array.from(new Set(connections.keys())),
+    };
+
+    try {
+      window.localStorage.setItem(localStateStorageKey, JSON.stringify(snapshot));
+    } catch {
+      // Ignore persistence failures (private mode, quota, etc.).
+    }
+  }, [
+    cardState,
+    connections,
+    isLocalStateKeyReady,
+    localStateStorageKey,
+    normalizedDeckParam,
+    sessionHydrationStatus,
+    shapes,
+  ]);
+
   // Persist local state continuously so refresh/disconnect can recover it.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (sessionHydrationStatus === "pending" || !normalizedDeckParam) return;
-
-    const timeoutId = window.setTimeout(() => {
-      const snapshot: PersistedLocalGameState = {
-        version: LOCAL_GAME_STATE_VERSION,
-        savedAt: Date.now(),
-        deckParam: normalizedDeckParam,
-        cardState: {
-          cards: cardState.cards,
-          deck: cardState.deck,
-          lastAction: cardState.lastAction,
-          actionId: cardState.actionId,
-        },
-        shapes,
-        connectedPeerIds: Array.from(connections.keys()),
-      };
-      try {
-        window.localStorage.setItem(
-          localStateStorageKey,
-          JSON.stringify(snapshot)
-        );
-      } catch {
-        // Ignore persistence failures (private mode, quota, etc.).
-      }
-    }, 180);
-
+    const timeoutId = window.setTimeout(persistLocalGameState, 180);
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [cardState, connections, localStateStorageKey, normalizedDeckParam, sessionHydrationStatus, shapes]);
+  }, [persistLocalGameState]);
+
+  // Flush the latest local state snapshot when the page is hidden/unloaded.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const flushSnapshot = () => {
+      persistLocalGameState();
+    };
+    window.addEventListener("pagehide", flushSnapshot);
+    window.addEventListener("beforeunload", flushSnapshot);
+    return () => {
+      window.removeEventListener("pagehide", flushSnapshot);
+      window.removeEventListener("beforeunload", flushSnapshot);
+    };
+  }, [persistLocalGameState]);
 
   const clearSmartGuides = useCallback(() => {
     setSmartGuides((prev) => {
@@ -539,14 +666,45 @@ function Canvas() {
   const snapPointToGrid = useCallback(
     (
       point: [number, number],
-      context?: { movingShape: Shape; excludeIds?: string[] }
+      context?: SnapContext
     ) => {
       if (!isSnapEnabled || !context) {
         if (context && !isSnapEnabled) clearSmartGuides();
         return point;
       }
 
-      const movingBounds = getShapeBounds(context.movingShape, point);
+      const movingBounds =
+        context.movingShapes &&
+        context.movingShapes.length > 1 &&
+        context.dragDelta
+          ? (() => {
+            const [dx, dy] = context.dragDelta;
+            let left = Number.POSITIVE_INFINITY;
+            let top = Number.POSITIVE_INFINITY;
+            let right = Number.NEGATIVE_INFINITY;
+            let bottom = Number.NEGATIVE_INFINITY;
+
+            for (const movingShape of context.movingShapes) {
+              const bounds = getShapeBounds(movingShape, [
+                movingShape.point[0] + dx,
+                movingShape.point[1] + dy,
+              ]);
+              left = Math.min(left, bounds.left);
+              top = Math.min(top, bounds.top);
+              right = Math.max(right, bounds.right);
+              bottom = Math.max(bottom, bounds.bottom);
+            }
+
+            return {
+              left,
+              top,
+              right,
+              bottom,
+              centerX: (left + right) / 2,
+              centerY: (top + bottom) / 2,
+            };
+          })()
+          : getShapeBounds(context.movingShape, point);
       const movingAnchorsX = [movingBounds.left, movingBounds.centerX, movingBounds.right];
       const movingAnchorsY = [movingBounds.top, movingBounds.centerY, movingBounds.bottom];
       const snapThreshold = OBJECT_SNAP_THRESHOLD_PX / Math.max(camera.z, 0.001);
@@ -639,7 +797,6 @@ function Canvas() {
   } = useHandDrag({
     svgRef: ref,
     cameraRef,
-    cardStateRef,
     snapPointToGrid,
     dispatch,
     setShapes,
@@ -739,7 +896,9 @@ function Canvas() {
     setSessionHydrationStatus("none");
 
     try {
-      window.localStorage.removeItem(localStateStorageKey);
+      if (localStateStorageKey) {
+        window.localStorage.removeItem(localStateStorageKey);
+      }
     } catch {
       // Ignore persistence failures (private mode, quota, etc.).
     }
@@ -1062,31 +1221,6 @@ function Canvas() {
   }, [camera, viewportSize]);
 
 
-  const gridBounds = useMemo(() => {
-    if (!isGridVisible || viewportSize.width === 0 || viewportSize.height === 0) {
-      return null;
-    }
-    const topLeft = screenToWorld([0, 0], camera);
-    const bottomRight = screenToWorld(
-      [viewportSize.width, viewportSize.height],
-      camera
-    );
-    const minX = Math.min(topLeft[0], bottomRight[0]);
-    const maxX = Math.max(topLeft[0], bottomRight[0]);
-    const minY = Math.min(topLeft[1], bottomRight[1]);
-    const maxY = Math.max(topLeft[1], bottomRight[1]);
-    const startX = Math.floor(minX / GRID_SIZE) * GRID_SIZE;
-    const startY = Math.floor(minY / GRID_SIZE) * GRID_SIZE;
-    const endX = Math.ceil(maxX / GRID_SIZE) * GRID_SIZE;
-    const endY = Math.ceil(maxY / GRID_SIZE) * GRID_SIZE;
-    return {
-      startX,
-      startY,
-      width: Math.max(endX - startX, GRID_SIZE),
-      height: Math.max(endY - startY, GRID_SIZE),
-    };
-  }, [camera, isGridVisible, viewportSize]);
-
   if (!isSetupComplete) {
     return (
       <SetupScreen
@@ -1130,21 +1264,6 @@ function Canvas() {
           onPointerCancel={onPointerUpCanvas}
         >
           <g style={{ transform }}>
-            {isGridVisible && gridBounds && (
-              <g
-                className="pointer-events-none"
-                transform={`translate(${gridBounds.startX} ${gridBounds.startY})`}
-                pointerEvents="none"
-              >
-                <Grid
-                  width={gridBounds.width}
-                  height={gridBounds.height}
-                  gridSize={GRID_SIZE}
-                  stroke="#6f5b3d"
-                  opacity={0.25}
-                />
-              </g>
-            )}
             {isSnapEnabled &&
               viewportWorldBounds &&
               (smartGuides.vertical !== null || smartGuides.horizontal !== null) && (
@@ -1306,9 +1425,7 @@ function Canvas() {
           rollD20={() => rollDie(20)}
           pickStarter={pickStarter}
           untapAll={untapAll}
-          isGridVisible={isGridVisible}
           isSnapEnabled={isSnapEnabled}
-          onToggleGrid={() => setIsGridVisible((prev) => !prev)}
           onToggleSnap={() => setIsSnapEnabled((prev) => !prev)}
         />
       </div>
