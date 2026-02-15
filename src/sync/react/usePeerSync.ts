@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import toast from "react-hot-toast";
-import { useShapeStore } from "../../hooks/useShapeStore";
-import type { RandomEventType, Shape } from "../../types/canvas";
+import type { RandomEventType } from "../../types/canvas";
 import type { ActionLogEntry } from "../../board/ActionLog";
 import type { CardState } from "../../hooks/useCardReducer";
 import {
@@ -136,47 +135,6 @@ export function usePeerSync(options: UsePeerSyncOptions) {
     const name = connectedPeerSyncUiState.peerNames[chosen] || chosen;
     sendRandomEvent({ type: "starter", result: name });
   };
-
-  useEffect(() => {
-    if (!peer?.id) return;
-
-    const peerId = peer.id;
-    let rafId: number | null = null;
-    let pendingShapes: Shape[] | null = null;
-
-    const flush = () => {
-      if (!pendingShapes) {
-        rafId = null;
-        return;
-      }
-
-      sendMessage({
-        type: "shapes",
-        payload: { id: peerId, data: pendingShapes },
-      });
-      pendingShapes = null;
-      rafId = null;
-    };
-
-    sendMessage({
-      type: "shapes",
-      payload: { id: peerId, data: useShapeStore.getState().shapes },
-    });
-
-    const unsubscribe = useShapeStore.subscribe((state, prevState) => {
-      if (state.shapes === prevState.shapes) return;
-      pendingShapes = state.shapes;
-      if (rafId !== null) return;
-      rafId = window.requestAnimationFrame(flush);
-    });
-
-    return () => {
-      unsubscribe();
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
-  }, [sendMessage, peer?.id]);
 
   useEffect(() => {
     ensurePeerSyncMessageSubscriptions();

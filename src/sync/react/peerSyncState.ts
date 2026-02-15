@@ -5,11 +5,6 @@ import { MAX_ACTION_LOG_ENTRIES } from "../../board/constants/game";
 import { describeRandomEvent, logActionToConsole } from "../../utils/game";
 import { usePeerStore } from "./peerStore";
 
-type ShapesMessagePayload = {
-  id: string;
-  data: Shape[];
-};
-
 type ConnectedMessagePayload = {
   peerId: string;
   name?: string;
@@ -139,10 +134,6 @@ export const ensurePeerSyncMessageSubscriptions = () => {
   messageSubscriptionsRegistered = true;
 
   const onMessage = usePeerStore.getState().onMessage;
-
-  onMessage<ShapesMessagePayload>("shapes", (message) => {
-    setPeerShapes(message.payload.id, message.payload.data);
-  });
 
   onMessage<ConnectedMessagePayload>("connected", (message) => {
     toast(`Peer connected: ${message.payload.peerId}`, {

@@ -1,13 +1,13 @@
 import type Peer from "peerjs";
 import type { DataConnection } from "peerjs";
 import { create } from "zustand";
-import { useShapeStore } from "../../hooks/useShapeStore";
 import {
   createSyncClient,
   isPeerSyncEnvelope,
   type SyncEnvelope,
 } from "../core";
 import { createPeerJsTransport } from "../transport";
+import { createShapesSyncChannel } from "./shapesChannel";
 
 export type Message<TPayload = unknown> = SyncEnvelope<string, TPayload>;
 
@@ -66,6 +66,7 @@ const syncClient = createSyncClient({
 });
 
 let coreHandlersRegistered = false;
+let channelPluginsRegistered = false;
 let runtimeRefCount = 0;
 let pendingRuntimeStop: ReturnType<typeof setTimeout> | null = null;
 
@@ -96,17 +97,6 @@ const ensureCoreHandlers = () => {
       },
       connectedPeerId
     );
-
-    syncClient.send(
-      {
-        type: "shapes",
-        payload: {
-          id: peer.id,
-          data: useShapeStore.getState().shapes,
-        },
-      },
-      connectedPeerId
-    );
   });
 
   syncClient.onMessage("peer-sync", (message) => {
@@ -121,6 +111,16 @@ const ensureCoreHandlers = () => {
   });
 };
 
+const ensureChannelPlugins = () => {
+  if (channelPluginsRegistered) return;
+  channelPluginsRegistered = true;
+  syncClient.registerChannel(
+    createShapesSyncChannel({
+      getLocalPeerId: () => usePeerStore.getState().peer?.id ?? null,
+    })
+  );
+};
+
 const clearPendingRuntimeStop = () => {
   if (!pendingRuntimeStop) return;
   clearTimeout(pendingRuntimeStop);
@@ -132,6 +132,7 @@ export const acquirePeerRuntime = () => {
   clearPendingRuntimeStop();
   if (runtimeRefCount > 1) return;
   ensureCoreHandlers();
+  ensureChannelPlugins();
   void syncClient.start().catch((error) => {
     setPeerError(toError(error));
   });
