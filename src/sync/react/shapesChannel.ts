@@ -1,4 +1,4 @@
-import type { SyncChannelPlugin } from "../core";
+import type { SyncChannelPlugin } from "@vescofire/peersync";
 import type { Shape } from "../../types/canvas";
 import { useShapeStore } from "../../hooks/useShapeStore";
 import { setPeerShapes } from "./peerSyncState";

@@ -5,8 +5,8 @@ import {
   createSyncClient,
   isPeerSyncEnvelope,
   type SyncEnvelope,
-} from "../core";
-import { createPeerJsTransport } from "../transport";
+} from "@vescofire/peersync";
+import { createPeerJsTransport } from "@vescofire/peersync/peerjs";
 import { createShapesSyncChannel } from "./shapesChannel";
 
 export type Message<TPayload = unknown> = SyncEnvelope<string, TPayload>;

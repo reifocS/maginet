@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createSyncClient, type SyncClientOptions, type SyncPeerId } from "../core";
-import { MemorySyncNetwork } from "../testing/memoryTransport";
+import { createSyncClient, type SyncClientOptions, type SyncPeerId } from "@vescofire/peersync";
+import { MemorySyncNetwork } from "@vescofire/peersync/testing";
 import { createShapesSyncChannel } from "./shapesChannel";
 import type { Shape } from "../../types/canvas";
 

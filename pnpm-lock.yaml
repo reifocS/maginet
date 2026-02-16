@@ -14,6 +14,9 @@ importers:
       '@use-gesture/react':
         specifier: ^10.3.1
         version: 10.3.1(react@19.2.0)
+      '@vescofire/peersync':
+        specifier: ^0.1.0
+        version: 0.1.0(peerjs@1.5.5)(react@19.2.0)
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
@@ -901,6 +904,17 @@ packages:
     resolution: {integrity: sha512-Yy19y6O2GJq8f7CHf7L0nxL8bf4PZCPaVOCgJrusOeFHY1LvHgYXnmnXg6N5iwAnbgbZCDjo60SiM6IPJi9C5g==}
     peerDependencies:
       react: '>= 16.8.0'
+
+  '@vescofire/peersync@0.1.0':
+    resolution: {integrity: sha512-I5TgHUzS82G/UtNO6Bz24I1+VYVz7Blidsr2Hg+owAr3A4UYTw/njPrY1Wy7IPLcKfXDJw7CmBQLLaSNfn+e6A==}
+    peerDependencies:
+      peerjs: ^1.5.0
+      react: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      peerjs:
+        optional: true
+      react:
+        optional: true
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -2537,6 +2551,11 @@ snapshots:
   '@use-gesture/react@10.3.1(react@19.2.0)':
     dependencies:
       '@use-gesture/core': 10.3.1
+      react: 19.2.0
+
+  '@vescofire/peersync@0.1.0(peerjs@1.5.5)(react@19.2.0)':
+    optionalDependencies:
+      peerjs: 1.5.5
       react: 19.2.0
 
   '@vitejs/plugin-react@4.7.0(vite@5.4.21(lightningcss@1.30.2))':
