@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Handler, useGesture } from "@use-gesture/react";
@@ -18,20 +18,21 @@ import useCards, {
   processRawText,
 } from "../hooks/useCards";
 import { generateId } from "../utils/math";
-import { useCardReducer, type CardState } from "../hooks/useCardReducer";
+import { useCardReducer } from "../hooks/useCardReducer";
 import { panCamera, screenToWorld } from "../utils/canvas_utils";
 import { SelectionPanel } from "./SelectionPanel";
 import inputs, { normalizeWheel } from "./inputs";
 import { useShapeStore } from "../hooks/useShapeStore";
-import { useCamera } from "../hooks/useCamera";
 import { usePeerSync } from "../hooks/usePeerSync";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useTouchGestures } from "../hooks/useTouchGestures";
 import { useHandDrag } from "../hooks/useHandDrag";
 import EditingTextShape from "./EditingTextShape";
+import { useGamePersistence } from "../hooks/useGamePersistence";
+import { useCanvasGestures } from "../hooks/useCanvasGestures";
+import { useObjectSnapping } from "../hooks/useObjectSnapping";
 
 import {
-  Point,
   Card,
   Shape,
   ShapeType,
@@ -46,125 +47,9 @@ import {
 } from "./constants/game";
 
 const SHORTCUT_DOCK_OPEN_STORAGE_KEY = "maginet:shortcut-dock-open";
-const OBJECT_SNAP_THRESHOLD_PX = 10;
-const LOCAL_GAME_STATE_STORAGE_KEY_PREFIX = "maginet:local-game-state:v1";
-const LOCAL_GAME_STATE_SESSION_KEY = "maginet:local-session-id:v1";
-const LOCAL_GAME_STATE_SESSION_CHANNEL = "maginet:local-session:v1";
-const LOCAL_GAME_STATE_SESSION_PROBE_MS = 140;
-const LOCAL_GAME_STATE_VERSION = 1;
-const LOCAL_GAME_STATE_TTL_MS = 1000 * 60 * 60 * 12;
-
-type SmartGuideState = {
-  vertical: number | null;
-  horizontal: number | null;
-};
-
-type SnapContext = {
-  movingShape: Shape;
-  excludeIds?: string[];
-  movingShapes?: Shape[];
-  dragDelta?: [number, number];
-};
-
-type PersistedLocalGameState = {
-  version: number;
-  savedAt: number;
-  deckParam: string;
-  cardState: CardState;
-  shapes: Shape[];
-  connectedPeerIds: string[];
-};
-
-type LocalStateSessionMessage = {
-  type: "hello" | "in-use";
-  sessionId: string;
-  instanceId: string;
-};
 
 const normalizeDeckParam = (value: string) =>
   value.trim().replace(/\r\n/g, "\n");
-
-const createLocalSessionId = () => {
-  if (typeof window !== "undefined" && typeof window.crypto?.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const dedupeShapesById = (shapeList: Shape[]) => {
-  const byId = new Map<string, Shape>();
-  shapeList.forEach((shape) => {
-    if (!shape || typeof shape !== "object" || typeof shape.id !== "string") return;
-    byId.set(shape.id, shape);
-  });
-  return Array.from(byId.values());
-};
-
-const getOrCreateLocalSessionId = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    let sessionId = window.sessionStorage.getItem(LOCAL_GAME_STATE_SESSION_KEY);
-    if (!sessionId) {
-      sessionId = createLocalSessionId();
-      window.sessionStorage.setItem(LOCAL_GAME_STATE_SESSION_KEY, sessionId);
-    }
-    return sessionId;
-  } catch {
-    return null;
-  }
-};
-
-const getSessionScopedStateStorageKey = (sessionId: string | null) =>
-  sessionId
-    ? `${LOCAL_GAME_STATE_STORAGE_KEY_PREFIX}:${sessionId}`
-    : LOCAL_GAME_STATE_STORAGE_KEY_PREFIX;
-
-const parsePersistedLocalGameState = (
-  raw: string
-): PersistedLocalGameState | null => {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    const value = parsed as Record<string, unknown>;
-
-    if (value.version !== LOCAL_GAME_STATE_VERSION) return null;
-    if (typeof value.savedAt !== "number" || !Number.isFinite(value.savedAt)) {
-      return null;
-    }
-    if (typeof value.deckParam !== "string") return null;
-
-    const cardStateValue = value.cardState as Record<string, unknown> | undefined;
-    if (!cardStateValue) return null;
-    if (!Array.isArray(cardStateValue.cards) || !Array.isArray(cardStateValue.deck)) {
-      return null;
-    }
-    if (!Array.isArray(value.shapes)) return null;
-
-    return {
-      version: LOCAL_GAME_STATE_VERSION,
-      savedAt: value.savedAt,
-      deckParam: value.deckParam,
-      cardState: {
-        cards: cardStateValue.cards as Card[],
-        deck: cardStateValue.deck as Card[],
-        lastAction:
-          typeof cardStateValue.lastAction === "string"
-            ? cardStateValue.lastAction
-            : undefined,
-        actionId:
-          typeof cardStateValue.actionId === "number"
-            ? cardStateValue.actionId
-            : undefined,
-      },
-      shapes: dedupeShapesById(value.shapes as Shape[]),
-      connectedPeerIds: Array.isArray(value.connectedPeerIds)
-        ? value.connectedPeerIds.filter((id): id is string => typeof id === "string")
-        : [],
-    };
-  } catch {
-    return null;
-  }
-};
 
 const getInitialShortcutDockOpen = () => {
   if (typeof window === "undefined") return true;
@@ -208,8 +93,51 @@ function Canvas() {
     getSelectedImages,
   } = useShapeStore();
 
+  // URL parameters
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const deckParam = params.get("deck") ?? "";
+  const normalizedDeckParam = normalizeDeckParam(deckParam);
 
-  // Camera
+  // Card state
+  const [cardState, dispatch] = useCardReducer({
+    cards: [],
+    deck: [],
+  });
+  const { cards, deck } = cardState;
+
+  // Peer sync
+  const {
+    peer,
+    error,
+    connections,
+    connectToPeer,
+    receivedDataMap,
+    peerPresence,
+    peerNames,
+    rollCoin,
+    rollDie,
+    pickStarter,
+  } = usePeerSync({ cards, deck, cardState });
+
+  // Persistence
+  const {
+    sessionHydrationStatus,
+    setSessionHydrationStatus,
+    isSetupComplete: isGameSetupComplete,
+    setIsSetupComplete: setIsGameSetupComplete,
+    localStateStorageKey,
+  } = useGamePersistence({
+    normalizedDeckParam,
+    cardState,
+    dispatch,
+    shapes,
+    connections,
+    connectToPeer,
+    peerId: peer?.id,
+  });
+
+  // Gesture and Camera state
   const {
     camera,
     setCamera,
@@ -217,7 +145,16 @@ function Canvas() {
     applyCameraImmediate,
     applyZoomDelta,
     applyZoomStep,
-  } = useCamera();
+    isPanning,
+    setIsPanning,
+    lastPanPosition,
+    setLastPanPosition,
+    isSpacePressed,
+    setIsSpacePressed,
+    isCommandPressed,
+    setIsCommandPressed,
+    setMousePosition,
+  } = useCanvasGestures({ isSetupComplete: isGameSetupComplete });
 
   // Local state
   const [isDragging, setIsDragging] = useState(false);
@@ -225,11 +162,6 @@ function Canvas() {
   const [mode, setMode] = useState<Mode>("select");
   const [shapeType, setShapeType] = useState<ShapeType>("text");
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  const [isCommandPressed, setIsCommandPressed] = useState(false);
-  const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [lastPanPosition, setLastPanPosition] = useState<Point | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [isShortcutDockOpen, setIsShortcutDockOpen] = useState(
     getInitialShortcutDockOpen
@@ -245,15 +177,18 @@ function Canvas() {
       : window.matchMedia("(max-width: 720px)").matches
   );
   const [showCounterControls, setShowCounterControls] = useState(false);
-  const [smartGuides, setSmartGuides] = useState<SmartGuideState>({
-    vertical: null,
-    horizontal: null,
+
+  // Snapping logic
+  const {
+    smartGuides,
+    clearSmartGuides,
+    snapPointToGrid,
+  } = useObjectSnapping({
+    isSnapEnabled,
+    shapes,
+    camera,
+    viewportSize,
   });
-  const [sessionHydrationStatus, setSessionHydrationStatus] = useState<
-    "pending" | "restored" | "none"
-  >("pending");
-  const [localStateStorageKey, setLocalStateStorageKey] = useState<string | null>(null);
-  const [isLocalStateKeyReady, setIsLocalStateKeyReady] = useState(false);
 
   // Refs
   const ref = useRef<SVGSVGElement>(null);
@@ -262,9 +197,6 @@ function Canvas() {
   const drawCardRef = useRef<() => void>(() => {});
   const engageCardRef = useRef<() => void>(() => {});
   const applyZoomStepRef = useRef(applyZoomStep);
-  const localSessionInstanceIdRef = useRef(createLocalSessionId());
-  const reconnectPeerIdsRef = useRef<string[]>([]);
-  const attemptedReconnectRef = useRef(false);
   applyZoomStepRef.current = applyZoomStep;
 
   // Touch gestures
@@ -289,14 +221,6 @@ function Canvas() {
     setIsDragging,
     clearDragging: () => { rDragging.current = null; },
   });
-
-  // URL parameters
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const deckParam = params.get("deck") ?? "";
-  const normalizedDeckParam = normalizeDeckParam(deckParam);
-
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
 
   const deckNames = deckParam.trim()
     ? processRawText(deckParam.trim())
@@ -335,27 +259,6 @@ function Canvas() {
 
   const { data: relatedCards } = useCards(relatedCardNames);
 
-  // Card state
-  const [cardState, dispatch] = useCardReducer({
-    cards: [],
-    deck: [],
-  });
-  const { cards, deck } = cardState;
-
-  // Peer sync
-  const {
-    peer,
-    error,
-    connections,
-    connectToPeer,
-    receivedDataMap,
-    peerPresence,
-    peerNames,
-    rollCoin,
-    rollDie,
-    pickStarter,
-  } = usePeerSync({ cards, deck, cardState });
-
   const handleWheelRef = useRef<Handler<"wheel">>(() => { });
   const gestureHandlersRef = useRef({
     onWheel: (state: Parameters<Handler<"wheel">>[0]) =>
@@ -367,7 +270,7 @@ function Canvas() {
   });
 
   handleWheelRef.current = (state) => {
-    if (!isSetupComplete) return;
+    if (!isGameSetupComplete) return;
     const { event, delta, ctrlKey } = state;
     const target = event.target as HTMLElement | null;
     if (target?.closest(".selection-panel, .help-dialog, .Modal__modal")) {
@@ -423,366 +326,6 @@ function Canvas() {
       // Ignore persistence failures (private mode, quota, etc.).
     }
   }, [isShortcutDockOpen]);
-
-  // Build a session-scoped persistence key and resolve duplicated-tab collisions.
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      setLocalStateStorageKey(getSessionScopedStateStorageKey(null));
-      setIsLocalStateKeyReady(true);
-      return;
-    }
-
-    let isCancelled = false;
-    let probeTimeoutId: number | null = null;
-    let channel: BroadcastChannel | null = null;
-    const instanceId = localSessionInstanceIdRef.current;
-    let activeSessionId = getOrCreateLocalSessionId();
-    let conflictDetected = false;
-
-    const applyStorageKey = (sessionId: string | null) => {
-      if (isCancelled) return;
-      setLocalStateStorageKey(getSessionScopedStateStorageKey(sessionId));
-      setIsLocalStateKeyReady(true);
-    };
-
-    const rotateSessionId = () => {
-      const nextSessionId = createLocalSessionId();
-      try {
-        window.sessionStorage.setItem(LOCAL_GAME_STATE_SESSION_KEY, nextSessionId);
-      } catch {
-        // If sessionStorage is unavailable we keep the shared fallback key.
-        return null;
-      }
-      return nextSessionId;
-    };
-
-    if (!activeSessionId || typeof BroadcastChannel === "undefined") {
-      applyStorageKey(activeSessionId);
-      return;
-    }
-
-    channel = new BroadcastChannel(LOCAL_GAME_STATE_SESSION_CHANNEL);
-    channel.onmessage = (event: MessageEvent<LocalStateSessionMessage>) => {
-      const message = event.data;
-      if (!message || typeof message !== "object") return;
-      if (message.sessionId !== activeSessionId) return;
-      if (message.instanceId === instanceId) return;
-
-      if (message.type === "hello") {
-        channel?.postMessage({
-          type: "in-use",
-          sessionId: activeSessionId,
-          instanceId,
-        } satisfies LocalStateSessionMessage);
-        return;
-      }
-
-      if (message.type === "in-use") {
-        conflictDetected = true;
-      }
-    };
-
-    channel.postMessage({
-      type: "hello",
-      sessionId: activeSessionId,
-      instanceId,
-    } satisfies LocalStateSessionMessage);
-
-    probeTimeoutId = window.setTimeout(() => {
-      if (isCancelled) return;
-      if (conflictDetected) {
-        activeSessionId = rotateSessionId();
-      }
-      applyStorageKey(activeSessionId);
-    }, LOCAL_GAME_STATE_SESSION_PROBE_MS);
-
-    return () => {
-      isCancelled = true;
-      if (probeTimeoutId !== null) {
-        window.clearTimeout(probeTimeoutId);
-      }
-      channel?.close();
-    };
-  }, []);
-
-  // Restore local state after refresh (deck/hand + board shapes)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isLocalStateKeyReady || !localStateStorageKey) return;
-
-    reconnectPeerIdsRef.current = [];
-    attemptedReconnectRef.current = false;
-    setSessionHydrationStatus("pending");
-
-    if (!normalizedDeckParam) {
-      setSessionHydrationStatus("none");
-      return;
-    }
-
-    const raw = window.localStorage.getItem(localStateStorageKey);
-    if (!raw) {
-      setSessionHydrationStatus("none");
-      return;
-    }
-
-    const snapshot = parsePersistedLocalGameState(raw);
-    if (!snapshot) {
-      setSessionHydrationStatus("none");
-      return;
-    }
-
-    const isDeckMatch =
-      normalizeDeckParam(snapshot.deckParam) === normalizedDeckParam;
-    const isFresh = Date.now() - snapshot.savedAt <= LOCAL_GAME_STATE_TTL_MS;
-    if (!isDeckMatch || !isFresh) {
-      setSessionHydrationStatus("none");
-      return;
-    }
-
-    dispatch({ type: "SET_STATE", payload: snapshot.cardState });
-    useShapeStore.setState({
-      shapes: snapshot.shapes,
-      selectedShapeIds: [],
-      shapeInCreation: null,
-      editingText: null,
-      history: { past: [], future: [] },
-      canUndo: false,
-      canRedo: false,
-      isDraggingShape: false,
-      isResizingShape: false,
-      isRotatingShape: false,
-    });
-    reconnectPeerIdsRef.current = snapshot.connectedPeerIds;
-    setSessionHydrationStatus("restored");
-    setIsSetupComplete(true);
-    toast("Recovered your previous local table state", {
-      id: "local-state-recovered",
-    });
-  }, [dispatch, isLocalStateKeyReady, localStateStorageKey, normalizedDeckParam]);
-
-  // Reconnect to previous peers after a refresh, when possible.
-  useEffect(() => {
-    if (sessionHydrationStatus !== "restored") return;
-    if (!peer?.id || attemptedReconnectRef.current) return;
-
-    const reconnectIds = Array.from(new Set(reconnectPeerIdsRef.current)).filter(
-      (id) => id && id !== peer.id && !connections.has(id)
-    );
-    attemptedReconnectRef.current = true;
-    reconnectIds.forEach((peerId) => connectToPeer(peerId));
-    if (reconnectIds.length > 0) {
-      toast(
-        `Trying to reconnect to ${reconnectIds.length} peer${reconnectIds.length === 1 ? "" : "s"}`,
-        { id: "local-state-reconnect" }
-      );
-    }
-  }, [connectToPeer, connections, peer?.id, sessionHydrationStatus]);
-
-  const persistLocalGameState = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (!isLocalStateKeyReady || !localStateStorageKey) return;
-    if (sessionHydrationStatus === "pending" || !normalizedDeckParam) return;
-
-    const snapshot: PersistedLocalGameState = {
-      version: LOCAL_GAME_STATE_VERSION,
-      savedAt: Date.now(),
-      deckParam: normalizedDeckParam,
-      cardState: {
-        cards: cardState.cards,
-        deck: cardState.deck,
-        lastAction: cardState.lastAction,
-        actionId: cardState.actionId,
-      },
-      shapes: dedupeShapesById(shapes),
-      connectedPeerIds: Array.from(new Set(connections.keys())),
-    };
-
-    try {
-      window.localStorage.setItem(localStateStorageKey, JSON.stringify(snapshot));
-    } catch {
-      // Ignore persistence failures (private mode, quota, etc.).
-    }
-  }, [
-    cardState,
-    connections,
-    isLocalStateKeyReady,
-    localStateStorageKey,
-    normalizedDeckParam,
-    sessionHydrationStatus,
-    shapes,
-  ]);
-
-  // Persist local state continuously so refresh/disconnect can recover it.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const timeoutId = window.setTimeout(persistLocalGameState, 180);
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [persistLocalGameState]);
-
-  // Flush the latest local state snapshot when the page is hidden/unloaded.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const flushSnapshot = () => {
-      persistLocalGameState();
-    };
-    window.addEventListener("pagehide", flushSnapshot);
-    window.addEventListener("beforeunload", flushSnapshot);
-    return () => {
-      window.removeEventListener("pagehide", flushSnapshot);
-      window.removeEventListener("beforeunload", flushSnapshot);
-    };
-  }, [persistLocalGameState]);
-
-  const clearSmartGuides = useCallback(() => {
-    setSmartGuides((prev) => {
-      if (prev.vertical === null && prev.horizontal === null) {
-        return prev;
-      }
-      return { vertical: null, horizontal: null };
-    });
-  }, []);
-
-  const getShapeBounds = useCallback((shape: Shape, pointOverride?: [number, number]) => {
-    const [xRaw, yRaw] = pointOverride ?? (shape.point as [number, number]);
-    const [wRaw, hRaw] = shape.size as [number, number];
-    const left = wRaw >= 0 ? xRaw : xRaw + wRaw;
-    const top = hRaw >= 0 ? yRaw : yRaw + hRaw;
-    const width = Math.abs(wRaw);
-    const height = Math.abs(hRaw);
-    const right = left + width;
-    const bottom = top + height;
-    return {
-      left,
-      right,
-      top,
-      bottom,
-      centerX: left + width / 2,
-      centerY: top + height / 2,
-    };
-  }, []);
-
-  const snapPointToGrid = useCallback(
-    (
-      point: [number, number],
-      context?: SnapContext
-    ) => {
-      if (!isSnapEnabled || !context) {
-        if (context && !isSnapEnabled) clearSmartGuides();
-        return point;
-      }
-
-      const movingBounds =
-        context.movingShapes &&
-        context.movingShapes.length > 1 &&
-        context.dragDelta
-          ? (() => {
-            const [dx, dy] = context.dragDelta;
-            let left = Number.POSITIVE_INFINITY;
-            let top = Number.POSITIVE_INFINITY;
-            let right = Number.NEGATIVE_INFINITY;
-            let bottom = Number.NEGATIVE_INFINITY;
-
-            for (const movingShape of context.movingShapes) {
-              const bounds = getShapeBounds(movingShape, [
-                movingShape.point[0] + dx,
-                movingShape.point[1] + dy,
-              ]);
-              left = Math.min(left, bounds.left);
-              top = Math.min(top, bounds.top);
-              right = Math.max(right, bounds.right);
-              bottom = Math.max(bottom, bounds.bottom);
-            }
-
-            return {
-              left,
-              top,
-              right,
-              bottom,
-              centerX: (left + right) / 2,
-              centerY: (top + bottom) / 2,
-            };
-          })()
-          : getShapeBounds(context.movingShape, point);
-      const movingAnchorsX = [movingBounds.left, movingBounds.centerX, movingBounds.right];
-      const movingAnchorsY = [movingBounds.top, movingBounds.centerY, movingBounds.bottom];
-      const snapThreshold = OBJECT_SNAP_THRESHOLD_PX / Math.max(camera.z, 0.001);
-
-      let snapDeltaX = 0;
-      let snapDeltaY = 0;
-      let guideX: number | null = null;
-      let guideY: number | null = null;
-      let bestXDistance = Number.POSITIVE_INFINITY;
-      let bestYDistance = Number.POSITIVE_INFINITY;
-
-      const trySnapX = (source: number, target: number) => {
-        const delta = target - source;
-        const distance = Math.abs(delta);
-        if (distance > snapThreshold) return;
-        if (distance < bestXDistance) {
-          bestXDistance = distance;
-          snapDeltaX = delta;
-          guideX = target;
-        }
-      };
-
-      const trySnapY = (source: number, target: number) => {
-        const delta = target - source;
-        const distance = Math.abs(delta);
-        if (distance > snapThreshold) return;
-        if (distance < bestYDistance) {
-          bestYDistance = distance;
-          snapDeltaY = delta;
-          guideY = target;
-        }
-      };
-
-      const excludedIds = new Set(context.excludeIds ?? []);
-      excludedIds.add(context.movingShape.id);
-
-      for (const candidate of shapes) {
-        if (excludedIds.has(candidate.id)) continue;
-        const bounds = getShapeBounds(candidate);
-        const candidateAnchorsX = [bounds.left, bounds.centerX, bounds.right];
-        const candidateAnchorsY = [bounds.top, bounds.centerY, bounds.bottom];
-        for (const source of movingAnchorsX) {
-          for (const target of candidateAnchorsX) {
-            trySnapX(source, target);
-          }
-        }
-        for (const source of movingAnchorsY) {
-          for (const target of candidateAnchorsY) {
-            trySnapY(source, target);
-          }
-        }
-      }
-
-      if (viewportSize.width > 0 && viewportSize.height > 0) {
-        const viewportCenter = screenToWorld(
-          [viewportSize.width / 2, viewportSize.height / 2],
-          camera
-        );
-        trySnapX(movingBounds.centerX, viewportCenter[0]);
-        trySnapY(movingBounds.centerY, viewportCenter[1]);
-      }
-
-      const snappedX = guideX !== null ? point[0] + snapDeltaX : point[0];
-      const snappedY = guideY !== null ? point[1] + snapDeltaY : point[1];
-
-      setSmartGuides((prev) => {
-        const nextVertical = guideX;
-        const nextHorizontal = guideY;
-        if (prev.vertical === nextVertical && prev.horizontal === nextHorizontal) {
-          return prev;
-        }
-        return { vertical: nextVertical, horizontal: nextHorizontal };
-      });
-
-      return [snappedX, snappedY] as [number, number];
-    },
-    [camera, clearSmartGuides, getShapeBounds, isSnapEnabled, shapes, viewportSize]
-  );
 
   // Hand drag
   const {
@@ -891,8 +434,6 @@ function Canvas() {
     setShowCounterControls(false);
     setSelectedHandCardId(null);
     clearSmartGuides();
-    reconnectPeerIdsRef.current = Array.from(connections.keys());
-    attemptedReconnectRef.current = true;
     setSessionHydrationStatus("none");
 
     try {
@@ -1139,16 +680,6 @@ function Canvas() {
   }, [clearSmartGuides, isDraggingShape, isSnapEnabled, mode]);
 
   useEffect(() => {
-    if (isPanning) {
-      document.body.style.cursor = "grabbing";
-    } else if (isSpacePressed) {
-      document.body.style.cursor = "grab";
-    } else {
-      document.body.style.cursor = "default";
-    }
-  }, [isPanning, isSpacePressed]);
-
-  useEffect(() => {
     if (!data || sessionHydrationStatus === "pending") return;
     if (sessionHydrationStatus === "restored") return;
     const initialDeck: Card[] = mapDataToCards(data);
@@ -1158,7 +689,7 @@ function Canvas() {
 
 
   useKeyboardShortcuts({
-    isSetupComplete,
+    isSetupComplete: isGameSetupComplete,
     editingText,
     selectedShapeIds,
     shapes,
@@ -1221,7 +752,7 @@ function Canvas() {
   }, [camera, viewportSize]);
 
 
-  if (!isSetupComplete) {
+  if (!isGameSetupComplete) {
     return (
       <SetupScreen
         deckParam={deckParam}
@@ -1232,7 +763,7 @@ function Canvas() {
         isDeckLoading={isDeckLoading}
         deckError={deckError ?? null}
         deckNames={deckNames}
-        onSetupComplete={() => setIsSetupComplete(true)}
+        onSetupComplete={() => setIsGameSetupComplete(true)}
       />
     );
   }
@@ -1263,6 +794,15 @@ function Canvas() {
           onPointerUp={onPointerUpCanvas}
           onPointerCancel={onPointerUpCanvas}
         >
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <g style={{ transform }}>
             {isSnapEnabled &&
               viewportWorldBounds &&
@@ -1303,7 +843,8 @@ function Canvas() {
                 mode={mode}
                 rDragging={{ current: null }}
                 inputRef={{ current: null }}
-                camera={camera}
+                zoom={camera.z}
+                cameraRef={cameraRef}
                 setHoveredCard={setHoveredCard}
                 updateDraggingRef={() => { }}
                 selected={selectedShapeIds.includes(shape.id)}
@@ -1318,7 +859,8 @@ function Canvas() {
                 key={shape.id}
                 shape={shape}
                 mode={mode}
-                camera={camera}
+                zoom={camera.z}
+                cameraRef={cameraRef}
                 rDragging={rDragging}
                 inputRef={inputRef}
                 setHoveredCard={setHoveredCard}
@@ -1337,7 +879,8 @@ function Canvas() {
                 key={shapeInCreation.shape.id}
                 shape={shapeInCreation.shape}
                 mode={mode}
-                camera={camera}
+                zoom={camera.z}
+                cameraRef={cameraRef}
                 inputRef={inputRef}
                 rDragging={rDragging}
                 setHoveredCard={setHoveredCard}

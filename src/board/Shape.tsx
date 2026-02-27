@@ -15,7 +15,8 @@ export function Shape({
   updateDraggingRef,
   readOnly,
   selected,
-  camera,
+  zoom,
+  cameraRef,
   stackIndex = 0,
   onToggleTap,
   snapToGrid,
@@ -26,7 +27,8 @@ export function Shape({
     shape: ShapeType;
     origin: number[];
   } | null>;
-  camera: Camera;
+  zoom: number;
+  cameraRef: React.RefObject<Camera>;
   color?: string;
   setHoveredCard: React.Dispatch<React.SetStateAction<string | null>>;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -73,11 +75,11 @@ export function Shape({
   };
 
   const onPointerDown = (e: React.PointerEvent<SVGElement>) => {
-    if (mode !== "select" || readOnly) return;
+    if (mode !== "select" || readOnly || !cameraRef.current) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     e.stopPropagation();
 
-    const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
+    const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, cameraRef.current);
 
     const point = [x, y];
 
@@ -98,9 +100,9 @@ export function Shape({
   };
 
   const onPointerMove = (e: React.PointerEvent<SVGElement>) => {
-    if (mode !== "select" || readOnly || !rDragging.current) return;
+    if (mode !== "select" || readOnly || !rDragging.current || !cameraRef.current) return;
 
-    const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
+    const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, cameraRef.current);
     const point = [x, y];
     const delta = vec.sub(point, rDragging.current.origin);
     const rawPoint = vec.add(rDragging.current.shape.point, delta) as [number, number];
@@ -185,22 +187,13 @@ export function Shape({
   const handleRotate = (newRotation: number) => {
     setShapes((prevShapes) =>
       prevShapes.map((s) =>
-        s.id === shape.id ? { ...s, rotation: newRotation } : s
+        s.id === shape.id ? { ...shape, rotation: newRotation } : s
       )
     );
   };
 
   return (
     <>
-      <defs>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-          <feMerge>
-            <feMergeNode in="coloredBlur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
       <ShapeFactory
         shape={shape}
         commonProps={commonProps}
@@ -215,7 +208,7 @@ export function Shape({
       {selected && !readOnly && (
         <SelectionBox
           shape={shape}
-          camera={camera}
+          zoom={zoom}
           onResize={handleResize}
           onRotate={handleRotate}
         />

@@ -1,0 +1,479 @@
+Original prompt: And for the modal, it should be movable (like a windows xp window)
+
+## 2026-02-08
+- Added draggable modal behavior by dragging the title bar (pointer events).
+- Dragging updates modal translate offset and preserves existing close-on-overlay + Escape handling.
+- Added cursor/user-select handling while dragging for a desktop-window feel.
+- Verified behavior with Playwright: modal moves when dragging title bar (`dx=120`, `dy=60`).
+- Screenshot captured at `output/modal-drag-smoke.png` after drag.
+- Notes for next agent: consider clamping modal drag to viewport bounds if windows should never leave screen.
+- Added shared drag hook `useWindowDrag` and applied it to Help panel and Shortcut dock.
+- Verified with Playwright drag smoke test:
+  - Help moved by (`dx=90`, `dy=45`)
+  - Shortcut dock moved by (`dx=-110`, `dy=35`)
+- Verified shortcut close button still works after draggable header.
+- Screenshot captured at `output/help-shortcut-drag-smoke.png`.
+- Persisted shortcut dock open/close state in localStorage using key `maginet:shortcut-dock-open`.
+- Added guarded read/write (SSR + storage failures) in Canvas state initialization/effect.
+- Verified persistence with Playwright: close => stored `false`; reload keeps closed; reopen => stored `true`.
+- Screenshot captured at `output/shortcut-storage-smoke.png`.
+- Added header close button to Help dialog title bar (`help-dialog-header-close`).
+- Kept drag behavior intact by marking the button with `data-drag-ignore`.
+- Verified with Playwright: opening help then clicking header close hides help panel.
+- Screenshot captured at `output/help-header-close-smoke.png`.
+- Made Help dialog header sticky (`position: sticky; top: 0`) so title/close stay visible while scrolling.
+- Verified with Playwright scroll test: header Y offset remained unchanged (`deltaY=0`) after scrolling content.
+- Screenshot captured at `output/help-sticky-header-smoke.png`.
+- Redesigned Help dialog into compact section cards with clearer hierarchy.
+- Added parsing for `key = action` rows into badge + description lines for faster scanning.
+- Added quick-reference intro strip and dedicated Multiplayer/Deck/How-to sections as lightweight tip cards.
+- Verified with Playwright smoke test: redesigned sections render (`sectionCount=7`) and header close button remains present.
+- Screenshot captured at `output/help-redesign-smoke.png`.
+- Fixed Help header/frame alignment by making outer dialog non-scrolling and moving scroll to `.help-dialog-content`.
+- Kept drag handle in fixed header row; content remains independently scrollable.
+- Added scrollbar styling fallback for `.help-dialog-content` in legacy CSS.
+- Verified alignment metrics (`leftDelta=2`, `rightDelta=2`, `topDelta=2`) and captured screenshot `output/help-header-alignment-fix.png`.
+
+## 2026-02-14
+- Investigated regression: card search tooltip in the Search modal appeared far away from hovered card after style cleanup.
+- Root cause: the modal uses CSS `transform` for dragging; that makes `position: fixed` tooltip coordinates resolve in modal space, but tooltip placement code was writing viewport coordinates.
+- Fix: converted viewport coordinates to modal-local coordinates in `positionCardTooltip` by subtracting modal rect offsets before setting `left/top`.
+- Verified with Playwright reproduction script (`/tmp/repro-tooltip-rects.mjs`):
+  - Before: tooltip top ~530 while hovered card top ~312 (incorrect offset).
+  - After: tooltip top ~314 next to hovered card (correct).
+- Captured verification artifacts:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/tooltip-repro-before.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/tooltip-repro-before.json`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/tooltip-repro-after.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/tooltip-repro-after.json`
+- Ran web-game Playwright client smoke run per skill:
+  - Command used `$WEB_GAME_CLIENT` with actions file and selector click.
+  - Screenshot: `/Users/vincentescoffier/Developer/code/maginet/output/web-game-tooltip-fix/shot-0.png`
+  - No console error artifact generated for this run.
+- Fixed zoom preview artifact on Ctrl+hover card previews (hand + canvas): zoom container now uses a fixed card aspect ratio and the image fills it with `object-cover`.
+- File changed: `src/board/Canvas.tsx` (`.zoomed-card` + child `<img>` classes).
+- Repro + verification scripts:
+  - `/tmp/repro-zoom-artifact-hand.mjs` (hand hover)
+  - `/tmp/repro-zoom-artifact-canvas.mjs` (canvas hover)
+- Verification screenshots:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/zoom-artifact-hand.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/zoom-artifact-canvas.png`
+- Also ran skill Playwright smoke run: `/Users/vincentescoffier/Developer/code/maginet/output/web-game-zoom-fix/shot-0.png` (no error file emitted).
+- Added Smart Guides / object snapping while dragging selected shapes on the board (Excalidraw-like alignment).
+- `Snap` now combines:
+  - grid snapping fallback,
+  - shape-to-shape anchor snapping (left/center/right + top/center/bottom),
+  - viewport center snapping (center X/Y).
+- Added guide rendering in world space while dragging:
+  - vertical/horizontal dashed blue alignment lines,
+  - lines are only visible during an active shape drag and clear on release / when snap mode is off.
+- Updated shape drag API so drag movement can pass snapping context (`movingShape`, excluded IDs) to prevent self-snapping and selection-group feedback.
+- Verification run (targeted Playwright script):
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-during-drag.png` (guide visible while aligned).
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-after-drag.png` (guide cleared after drop).
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-check.json` shows `duringDrag.guideCount=1`, `afterDrag.guideCount=0`, `centerDeltaY=0`.
+- Skill-required `$WEB_GAME_CLIENT` run completed for this change:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-smart-guides/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-smart-guides/shot-1.png`
+  - No errors file emitted.
+- Sanity checks after implementation:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+- Follow-up change: removed grid snapping behavior from `Snap` mode to keep only Smart Guides alignment snapping (per user feedback that mixed snapping felt conflicting).
+- `Snap` now only adjusts position when a guide target is within threshold; otherwise dragged shapes keep raw pointer position.
+- Non-drag placements (e.g. create/place flows calling snap without drag context) no longer snap to grid.
+- Re-verified alignment behavior:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-during-drag.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-after-drag.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/smart-guides-check.json`
+- Skill-required Playwright client run for this follow-up:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-smart-guides-no-grid/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-smart-guides-no-grid/shot-1.png`
+  - No errors file emitted.
+- Added refresh/disconnect local recovery for multiplayer session state in `src/board/Canvas.tsx`.
+- Persisted snapshot to localStorage (`maginet:local-game-state:v1`) with:
+  - current deck param (normalized),
+  - local card state (`cards`, `deck`, last action metadata),
+  - local board shapes,
+  - connected peer IDs (for reconnect attempts).
+- Hydration behavior on load:
+  - validates snapshot version + 12h freshness window + matching deck param,
+  - restores local card/board state,
+  - skips setup screen when recovery succeeds (`setIsSetupComplete(true)`),
+  - prevents deck bootstrap from overwriting restored state.
+- Reconnect behavior:
+  - after peer init, tries to reconnect to previously connected peer IDs from snapshot.
+- Added toast dedupe IDs for recovery/reconnect messages to avoid duplicate notifications in dev strict-mode replays.
+- Validation:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Targeted refresh recovery Playwright script (`/tmp/test-refresh-recovery.mjs`) confirms state survives reload:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/refresh-recovery-check.json`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/refresh-recovery-before.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/refresh-recovery-after.png`
+  - Skill-required `$WEB_GAME_CLIENT` runs:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery/shot-1.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery-v2/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery-v2/shot-1.png`
+    - No errors file emitted.
+- Reproduced bug: local recovery key collision across tabs can restore another tab/player board state.
+  - Repro script: `/tmp/repro-peer-restore-collision.mjs`
+  - Artifact: `/Users/vincentescoffier/Developer/code/maginet/output/repro-peer-restore-collision.json` (`reproduced: true`)
+  - Screenshots:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/repro-peer-restore-a-initial.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/repro-peer-restore-b-modified.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/repro-peer-restore-a-after-reload.png`
+- Fix: scoped recovery snapshot storage key per browser tab session.
+  - Added session key namespace via sessionStorage (`maginet:local-session-id:v1`) and snapshot key prefix (`maginet:local-game-state:v1:<session-id>`).
+  - Result: one tab cannot overwrite another tab’s recoverable snapshot, while refresh in the same tab still restores correctly.
+  - Implementation in `src/board/Canvas.tsx` (`createLocalSessionId`, `getSessionScopedStateStorageKey`, `localStateStorageKey` usage for read/write).
+- Post-fix verification:
+  - Isolation script: `/tmp/verify-peer-restore-isolation.mjs`
+  - Artifact: `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-isolation.json`
+    - `bInitiallyRestoredFromA: false`
+    - `isolatedRecovery: true`
+  - Screenshots:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-a-initial.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-b-initial.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-b-modified.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-a-after-reload.png`
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Skill-required run:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery-isolated/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-session-recovery-isolated/shot-1.png`
+- Added `New Game` action in UI (top-left control group) to reset current tab session quickly.
+  - `SelectionPanel` now exposes a `New Game` button and callback prop.
+  - `Canvas` implements reset flow:
+    - asks confirmation,
+    - reinitializes deck from current loaded decklist,
+    - clears board shapes + shape history + selection/editing state,
+    - resets mode/tool selection and hand selection,
+    - removes this tab’s persisted recovery snapshot before continuing.
+- Files touched:
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/Canvas.tsx`
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/SelectionPanel.tsx`
+- Validation:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Targeted test script (`/tmp/test-new-game-button.mjs`) confirms behavior:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/new-game-check.json`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/new-game-before.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/new-game-after.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/new-game-after-reload.png`
+  - Skill-required run:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-new-game/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-new-game/shot-1.png`
+- Fixed Help button overlap with top-left controls after adding `New Game`.
+  - Root cause: Help trigger was a separately positioned fixed button in `Canvas` with hardcoded left offset.
+  - Fix: moved Help trigger into `SelectionPanel` top-left control group next to `Connect` and removed floating absolute Help button from `Canvas`.
+  - `SelectionPanel` now takes `showHelp` + `onToggleHelp` props for the inline `?` control.
+- Files touched:
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/Canvas.tsx`
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/SelectionPanel.tsx`
+- Verification:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Layout check script (`/tmp/check-help-layout.mjs`) reports no overlap desktop/mobile:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/help-layout-check.json`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/help-layout-desktop.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/help-layout-mobile.png`
+  - Skill-required run:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-help-layout-fix/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-help-layout-fix/shot-1.png`
+- Started PR1 sync extraction scaffold (no behavior change expected).
+  - Added reusable core modules:
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/envelope.ts` (typed message envelope + guard)
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/eventBus.ts` (framework-agnostic typed message bus)
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/protocol.ts` (peer-sync protocol helpers/types)
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/client.ts` (initial public client/plugin interfaces + no-op shell)
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/index.ts`
+  - Added transport helper module:
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/transport/peerjs.ts`
+    - `/Users/vincentescoffier/Developer/code/maginet/src/sync/transport/index.ts`
+  - Refactored `/Users/vincentescoffier/Developer/code/maginet/src/hooks/usePeerConnection.ts` to consume core scaffolding:
+    - replaced local message callback map with `createSyncEventBus`,
+    - replaced inline message guard with `isSyncEnvelope`,
+    - replaced peer-sync narrowing with `isPeerSyncEnvelope`,
+    - replaced direct send loops with transport helper functions.
+  - Updated `/Users/vincentescoffier/Developer/code/maginet/src/hooks/usePeerSync.ts` message subscriptions to typed payload handlers (`onMessage<PayloadType>(...)`) to preserve strict TS compatibility.
+  - Validation:
+    - `pnpm lint` passes.
+    - `pnpm build` passes.
+    - Skill-required run:
+      - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-sync-core-pr1/shot-0.png`
+      - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-sync-core-pr1/shot-1.png`
+- Continued sync extraction with a real transport/client layer (PR2, behavior-preserving target).
+  - Replaced no-op client shell in `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/client.ts` with functional `createSyncClient`:
+    - start/stop/connect/disconnect wrappers,
+    - typed message subscription bus,
+    - envelope metadata stamping (`roomId`, `msgId`, `ts`, sender),
+    - optional channel plugin sync primitives (`sync:channel-patch`, `sync:channel-snapshot`) with remote-apply guards.
+  - Replaced PeerJS helper-only transport with reusable adapter in `/Users/vincentescoffier/Developer/code/maginet/src/sync/transport/peerjs.ts`:
+    - `createPeerJsTransport` implementing `SyncTransport`,
+    - connection/message lifecycle subscriptions,
+    - peer/connections exposure for host app state projection.
+  - Refactored `/Users/vincentescoffier/Developer/code/maginet/src/hooks/usePeerConnection.ts` to route through new sync engine:
+    - uses `createSyncClient` + `createPeerJsTransport` instead of direct per-connection wiring,
+    - preserves external store API (`initPeer`, `connectToPeer`, `sendMessage`, `disconnect`, `onMessage`),
+    - keeps existing peer-sync handshake and initial `connected`/`shapes` sync on new connections.
+- Validation after PR2 refactor:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Skill-required Playwright run:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-sync-core-pr2/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-sync-core-pr2/shot-1.png`
+  - Visual inspection: setup screen/UI renders as expected, no obvious regressions in captured frames.
+- Ran an explicit two-player multiplayer sync game loop verification (Playwright custom script) to validate end-to-end peer sync behavior after sync extraction.
+  - Script: `/tmp/test-multiplayer-sync-game-loop.mjs`
+  - Runtime target: production preview (`http://127.0.0.1:4173`) with deterministic deck `?deck=4%20Island`.
+  - Flow:
+    - Peer B connects to peer A.
+    - Turn loop: A plays card, B plays card, A plays card.
+    - After each turn, verified target position appears on both peers.
+  - Final result: `syncOk: true`
+  - Artifact JSON: `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop.json`
+  - Screenshots:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop-a.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop-b.png`
+- Note: an initial dev-mode loop attempt hit transient peer readiness issues (`id: waiting...` / lost server connection toasts) under local dev runtime; rerunning against production preview produced stable multiplayer sync verification.
+- Addressed root cause for duplicate peer error side effects under React StrictMode (not just UI-level dedupe).
+  - Root cause: `createSyncClient.start()` was async without in-flight lifecycle locking; during StrictMode effect replay, cleanup could call `stop()` before `start()` finished (`started` still false), so stop no-op'd and a second start began, creating duplicated peer startup/error side effects.
+  - Fix in `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/client.ts`:
+    - Added `startPromise` lock to serialize concurrent starts.
+    - Added `stopRequestedWhileStarting` to honor stop requests that happen during in-flight start.
+    - Split transport listener wiring into subscribe/unsubscribe helpers to guarantee single listener registration.
+    - `stop()` now waits through in-flight start path and tears down deterministically.
+  - Additional guard in `/Users/vincentescoffier/Developer/code/maginet/src/hooks/usePeerConnection.ts`:
+    - Error state updates now dedupe by error message (`setPeerError`) to prevent repeated identical state churn.
+  - Toast behavior hardening in `/Users/vincentescoffier/Developer/code/maginet/src/hooks/usePeerSync.ts`:
+    - Error effect keyed by `error?.message` with sticky id (`peer-connection-error`) and last-message ref.
+    - Connected toast now has per-peer toast id (`peer-connected:<peerId>`) to avoid duplicate stacks.
+- Validation after lifecycle fix:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Multiplayer game loop replay (2 peers, 3 turns) still passes on preview runtime:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop.json`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop-a.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop-b.png`
+  - Skill-required Playwright smoke run:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-lifecycle-fix/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-lifecycle-fix/shot-1.png`
+- Stabilized local persistence across refresh + multi-tab sessions in `/Users/vincentescoffier/Developer/code/maginet/src/board/Canvas.tsx`.
+  - Added collision-aware per-tab persistence session negotiation using `BroadcastChannel` (`maginet:local-session:v1`):
+    - tabs announce `hello` for current session id,
+    - existing tab replies `in-use`,
+    - newcomer rotates to a new session id when conflict detected.
+  - This addresses duplicated-tab/sessionStorage-clone conflicts where tabs could previously write to the same local snapshot key.
+  - Made persistence key initialization explicit and gated hydration/persist until key readiness (`isLocalStateKeyReady`).
+  - Added shape dedupe by id on parse/persist to prevent accidental duplicated shape entries in snapshots.
+  - Added unload/pagehide snapshot flush in addition to periodic debounce writes to reduce refresh-loss windows.
+- Persistence regression checks after fix:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+  - Refresh recovery check (preview runtime):
+    - `/Users/vincentescoffier/Developer/code/maginet/output/refresh-recovery-check.json`
+    - `persistedHand: true`, `persistedBoard: true`, `setupSkippedAfterReload: true`
+  - Tab isolation check (preview runtime):
+    - `/Users/vincentescoffier/Developer/code/maginet/output/verify-peer-restore-isolation.json`
+    - `isolatedRecovery: true`, `bInitiallyRestoredFromA: false`
+  - Multiplayer sync loop still green after persistence changes:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/multiplayer-sync-game-loop.json` (`syncOk: true`)
+- Skill-required run after these changes:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-persistence-stability/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-persistence-stability/shot-1.png`
+- Extra stability check added after persistence refactor:
+  - Script: `/tmp/test-refresh-stability-loop.mjs`
+  - 5 consecutive reload cycles with an active board card and non-empty deck.
+  - Result artifact: `/Users/vincentescoffier/Developer/code/maginet/output/refresh-stability-loop.json`
+  - Outcome: `stable: true` (board/hand/deck counts and card position remained consistent across all cycles).
+- Reproduced peer-id `waiting...` regression as a strict-mode lifecycle race in sync core (`start -> stop -> start` overlap can leave client fully stopped).
+- Added failing non-UI integration test in `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/client.integration.test.ts`:
+  - `recovers correctly from strict-mode style start/stop/start overlap`
+- Root cause: in `createSyncClient.start()`, callers awaiting an in-flight `startPromise` returned without retrying when that start had been canceled by `stopRequestedWhileStarting`.
+- Fix: updated `/Users/vincentescoffier/Developer/code/maginet/src/sync/core/client.ts` so `start()` now re-attempts start after awaiting `startPromise` if `started` is still `false`.
+- Added/kept integration test coverage for race cases (6 sync integration tests passing).
+- Verification:
+  - `pnpm test:sync` passes.
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+- Skill-required Playwright smoke runs executed and screenshots reviewed:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-id-fix/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-id-fix/shot-1.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-id-fix-table/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-peer-id-fix-table/shot-1.png`
+- Confirmed in screenshot verification that table now shows generated id (not `waiting...`) after entering table.
+- Fixed responsive overlap between `Connect` and `Mulligan` controls in `/Users/vincentescoffier/Developer/code/maginet/src/board/SelectionPanel.tsx`.
+- Mobile behavior change:
+  - `Mulligan` now renders inside the top-left mobile control stack (`isMobile` branch).
+  - The legacy left-side absolute Mulligan group is hidden on mobile (`max-[720px]:hidden`) to avoid duplicate/overlapping controls.
+- Verification artifacts:
+  - Skill-required Playwright run: `/Users/vincentescoffier/Developer/code/maginet/output/web-game-responsive-mulligan-fix/shot-0.png`, `/Users/vincentescoffier/Developer/code/maginet/output/web-game-responsive-mulligan-fix/shot-1.png`
+  - Mobile overlap check: `/Users/vincentescoffier/Developer/code/maginet/output/mobile-mulligan-connect-overlap/mobile-layout.png`
+  - Bounding boxes: `/Users/vincentescoffier/Developer/code/maginet/output/mobile-mulligan-connect-overlap/overlap-check.json` with `overlap.intersects=false`.
+- Quality checks after change:
+  - `pnpm lint` passes.
+  - `pnpm build` passes.
+- Follow-up responsive polish: moved help button out of the mobile top-left stack to prevent overlap with left deck controls.
+  - Desktop help button remains in top-left group.
+  - Mobile help button now renders in top-right group.
+- Updated file: `/Users/vincentescoffier/Developer/code/maginet/src/board/SelectionPanel.tsx`.
+- Re-verified mobile screenshot after follow-up:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/mobile-mulligan-connect-overlap/mobile-layout.png`
+- Re-ran skill-required Playwright smoke:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-responsive-mulligan-fix-v2/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-responsive-mulligan-fix-v2/shot-1.png`
+- Checks: `pnpm lint` and `pnpm build` pass after follow-up.
+- Added Playwright e2e suite (real @playwright/test project) covering canvas controls, core game mechanics, and multiplayer sync.
+- Added Playwright config: `/Users/vincentescoffier/Developer/code/maginet/playwright.config.ts`.
+  - Base URL: `http://127.0.0.1:4173`
+  - `webServer` starts Vite dev server (`pnpm dev --host 127.0.0.1 --port 4173`)
+  - Deterministic execution: `workers: 1`.
+- Added reusable table helpers for setup, readiness waits, drag/drop, and peer connect:
+  - `/Users/vincentescoffier/Developer/code/maginet/e2e/utils/table.ts`
+- Added spec files:
+  - `/Users/vincentescoffier/Developer/code/maginet/e2e/canvas-controls.spec.ts`
+  - `/Users/vincentescoffier/Developer/code/maginet/e2e/core-game-mechanics.spec.ts`
+  - `/Users/vincentescoffier/Developer/code/maginet/e2e/multiplayer-sync.spec.ts`
+- Added npm scripts:
+  - `test:e2e`, `test:e2e:headed`, `test:e2e:debug` in `/Users/vincentescoffier/Developer/code/maginet/package.json`.
+- Added ignore entries for generated Playwright artifacts in `/Users/vincentescoffier/Developer/code/maginet/.gitignore` (`playwright-report`, `test-results`).
+- Debug + stabilization notes:
+  - Initial failures came from acting before deck initialization had completed and from shortcut dock intercepting tool clicks.
+  - Fixed by waiting for deck readiness (`.deck-count >= 1`) in `enterTable` helper and closing shortcut dock at start of canvas-controls spec.
+- Validation:
+  - `pnpm test:e2e` passes (`4 passed`).
+  - `pnpm lint` passes.
+  - `pnpm test:sync` passes.
+  - `pnpm build` passes.
+- Skill-required Playwright smoke run:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-e2e-suite-smoke/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-e2e-suite-smoke/shot-1.png`
+- Fixed test-runner conflict where Vitest attempted to execute Playwright e2e specs (`e2e/*.spec.ts`), causing `Playwright Test did not expect test.describe()` errors.
+- Added `vitest.config.ts` to scope Vitest to `src/**/*.{test,spec}.{ts,tsx}` and exclude `e2e/**`, `playwright-report/**`, and `test-results/**`.
+- Verification after fix:
+  - `pnpm test` passes (`src/sync/core/client.integration.test.ts`, 6 tests).
+  - `pnpm test:e2e` passes (4 Playwright tests).
+- Refactored React peer-sync adapter to use `useSyncExternalStore` for message-driven UI state (`receivedDataMap`, `peerPresence`, `peerNames`, `actionLog`) instead of local `useState` updates in `usePeerSync`.
+- Added module-level peer sync UI external store in `src/hooks/usePeerSync.ts` with explicit `subscribe/getSnapshot` semantics.
+- Moved message subscription registration to a one-time module-level setup (`ensureMessageSubscriptions`) to avoid repeated side-effect registration across remounts.
+- Added reference-counted runtime lifecycle in `src/hooks/usePeerConnection.ts`:
+  - `acquirePeerRuntime()` starts sync client once.
+  - `releasePeerRuntime()` stops only when no consumers remain (with deferred stop), reducing strict-mode start/stop churn.
+  - `usePeerStore.initPeer/disconnect()` now map to runtime acquire/release.
+- Kept sync core (`src/sync/core/*`) transport/protocol unchanged; this refactor is React adapter only.
+- Verification:
+  - `pnpm lint` passes.
+  - `pnpm test` passes (6 sync integration tests).
+  - `pnpm test:e2e` passes (4 Playwright tests incl. multiplayer sync).
+- Skill smoke run after change:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-use-sync-external-store/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-use-sync-external-store/shot-1.png`
+- Upgraded multiplayer Playwright e2e test to a full lifecycle scenario:
+  - connect peers,
+  - draw + play card,
+  - drag and verify cross-peer sync,
+  - refresh one peer and verify local restore,
+  - drag on other peer post-refresh and verify sync continues (reconnect path).
+- File updated: `/Users/vincentescoffier/Developer/code/maginet/e2e/multiplayer-sync.spec.ts`.
+- Verification:
+  - `pnpm exec playwright test e2e/multiplayer-sync.spec.ts` passes.
+  - `pnpm test:e2e` passes (4 tests total).
+- Skill smoke run after update:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-multiplayer-e2e-lifecycle/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-multiplayer-e2e-lifecycle/shot-1.png`
+- Follow-up boundary split completed: React adapter moved under `src/sync/react` to clarify package-style separation from `src/sync/core`.
+- New modules:
+  - `src/sync/react/peerStore.ts` (runtime + transport bindings + zustand peer store)
+  - `src/sync/react/peerSyncState.ts` (external store and message-side effects)
+  - `src/sync/react/usePeerSync.ts` (React hook binding with `useSyncExternalStore`)
+  - `src/sync/react/index.ts` (public React sync exports)
+- `src/hooks/usePeerConnection.ts` and `src/hooks/usePeerSync.ts` converted to thin compatibility re-exports, so existing app imports continue to work.
+- Verification after boundary split:
+  - `pnpm lint` passes.
+  - `pnpm test` passes.
+  - `pnpm test:e2e` passes.
+  - `pnpm build` passes.
+- Skill smoke run:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-react-binding-boundary/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-react-binding-boundary/shot-1.png`
+- Effect relevance pass (React docs "You Might Not Need an Effect"):
+  - Removed `cardStateRef` sync effect from `src/board/Canvas.tsx`; no longer mirrors reducer state via effect.
+  - Updated `src/hooks/useHandDrag.ts` to read directly from `cards` prop (latest closure via `playCardAtRef`) instead of `cardStateRef.current`.
+  - Removed peer-state pruning effect in `src/sync/react/usePeerSync.ts` by deriving connected peer data with `useMemo` (`selectConnectedPeerSyncUiState`) from external store snapshot.
+  - Removed separate local-name registration effect in `src/sync/react/usePeerSync.ts`; heartbeat effect already sets the local peer name immediately.
+  - Removed query->preview reset effect in `src/board/SelectionPanel.tsx`; preview reset now happens directly in input `onChange` event handler.
+  - Deleted obsolete `pruneDisconnectedPeerState` mutator from `src/sync/react/peerSyncState.ts`.
+- Verification after effect cleanup:
+  - `pnpm lint` passes.
+  - `pnpm test` passes.
+  - `pnpm test:e2e` passes.
+  - `pnpm build` passes.
+- Skill smoke run:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-effect-audit/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-effect-audit/shot-1.png`
+- Removed remaining dead sync effects in `src/sync/react/usePeerSync.ts`:
+  - removed `playersInfo` broadcast effect (no active consumer),
+  - removed `cards`/`deck` broadcast effect (no active consumers).
+- Simplified options usage in `usePeerSync` to avoid unused destructuring while keeping API compatibility.
+- Removed corresponding no-op message handlers in `src/sync/react/peerSyncState.ts` for `playersInfo` and `card-state`.
+- Verification:
+  - `pnpm lint` passes.
+  - `pnpm test` passes.
+  - `pnpm test:e2e` passes.
+  - `pnpm build` passes.
+- Skill smoke run:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-remove-dead-sync-effects/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-remove-dead-sync-effects/shot-1.png`
+
+## 2026-02-15
+- Migrated shape synchronization from full-state `"shapes"` app messages to sync-core channel plugin patches.
+- Added `src/sync/react/shapesChannel.ts` with channel-level `diff/apply/snapshot/hydrate` for per-peer shape state:
+  - Patch payload now contains incremental per-peer updates (`upserts`, `removedIds`, and optional order updates).
+  - Remote apply now updates only the sender peer’s shape state to prevent clobbering unrelated state.
+- Wired channel registration in `src/sync/react/peerStore.ts` via `syncClient.registerChannel(createShapesSyncChannel(...))`.
+- Removed legacy full-array shape broadcasts:
+  - deleted manual `sendMessage({ type: "shapes" ... })` logic from `src/sync/react/usePeerSync.ts`.
+  - removed `"shapes"` message subscription path from `src/sync/react/peerSyncState.ts`.
+- Added integration test reproducing/fixing the regression where only the last updated remote card remained visible:
+  - `src/sync/react/shapesChannel.integration.test.ts`
+  - Scenario: sync two cards, update one card, verify receiver still has both.
+- Validation run:
+  - `pnpm lint` ✅
+  - `pnpm test` ✅
+  - `pnpm test:e2e -- e2e/multiplayer-sync.spec.ts` ✅
+- Fixed smart-guide snapping for multi-selection drags so snap anchors are computed from the moving selection group bounds instead of only the grabbed shape.
+- Updated snap context wiring:
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/Shape.tsx` now passes `movingShapes` + `dragDelta` during multi-shape drag.
+  - `/Users/vincentescoffier/Developer/code/maginet/src/board/Canvas.tsx` now computes moving bounds from the translated union of selected shapes when that context is provided.
+- Behavioral effect:
+  - Group alignment is now stable regardless of which member of the selection is grabbed.
+  - Guides/snap deltas still apply as one shared translation to all selected shapes.
+- Validation:
+  - `pnpm lint` passes.
+  - `pnpm test` passes.
+  - `pnpm build` passes.
+  - Skill-required Playwright client smoke run completed:
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-snap-group-bounds-fix/shot-0.png`
+    - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-snap-group-bounds-fix/shot-1.png`
+    - No `errors-*.json` emitted.
+- TODO for next agent:
+  - Add targeted Playwright e2e coverage that reproduces and asserts group-bound snapping behavior (multi-select drag should snap by selection bbox, not individual card bbox).
+- Additional regression check: `pnpm test:e2e -- e2e/canvas-controls.spec.ts` passes after the multi-selection snap change.
+- Removed the board Grid feature (UI toggle + rendering + implementation).
+  - Deleted `src/board/Grid.tsx`.
+  - Removed `GRID_SIZE` constant from `src/board/constants/game.ts`.
+  - Removed grid state/rendering from `src/board/Canvas.tsx` (`isGridVisible`, `gridBounds`, `<Grid />`, and `onToggleGrid` wiring).
+  - Simplified `SelectionPanel` props to remove `isGridVisible`/`onToggleGrid`; kept only Snap toggle.
+- Updated e2e coverage to match new UX:
+  - `e2e/canvas-controls.spec.ts` now validates snap/help toggles only (no Grid button assertions).
+- Validation after removal:
+  - `pnpm lint` passes.
+  - `pnpm test` passes.
+  - `pnpm build` passes.
+  - `pnpm test:e2e -- e2e/canvas-controls.spec.ts` passes.
+- Skill-required Playwright client smoke run completed and screenshots reviewed:
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-remove-grid/shot-0.png`
+  - `/Users/vincentescoffier/Developer/code/maginet/output/web-game-remove-grid/shot-1.png`
+  - Result confirms Grid control is no longer present.

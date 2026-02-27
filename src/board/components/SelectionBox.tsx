@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import { Shape as ShapeType, Camera } from "../../types/canvas";
+import { Shape as ShapeType } from "../../types/canvas";
 import { DOMVector, screenToCanvas } from "../../utils/vec";
 import { getBounds } from "../../utils/canvas_utils";
 import { useShapeStore } from "../../hooks/useShapeStore";
+import { useCamera } from "../../hooks/useCamera";
 
 type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rotate";
 
 interface SelectionBoxProps {
   shape: ShapeType;
-  camera: Camera;
+  zoom: number;
   onResize: (
     newSize: [number, number],
     newPoint: [number, number],
@@ -38,7 +39,7 @@ const getShapeDimensions = (shape: ShapeType) => {
 
 export function SelectionBox({
   shape,
-  camera,
+  zoom,
   onResize,
   onRotate,
 }: SelectionBoxProps) {
@@ -56,6 +57,8 @@ export function SelectionBox({
   // Use normalized bounds so handles work even if size components are negative.
   const centerX = x + width / 2;
   const centerY = y + height / 2;
+
+  const { camera } = useCamera(); // SelectionBox needs camera for screenToCanvas in handlers.
 
 
   // Handle positions in unrotated space (we rotate them for display)
@@ -301,8 +304,8 @@ export function SelectionBox({
         height={height}
         fill="none"
         stroke="#4A90E2"
-        strokeWidth={2 / camera.z}
-        strokeDasharray={`${5 / camera.z},${5 / camera.z}`}
+        strokeWidth={2 / zoom}
+        strokeDasharray={`${5 / zoom},${5 / zoom}`}
         pointerEvents="none"
         transform={`rotate(${rotation} ${centerX} ${centerY})`}
       />
@@ -317,10 +320,10 @@ export function SelectionBox({
               key={type}
               cx={rotatedX}
               cy={rotatedY}
-              r={HANDLE_SIZE / camera.z}
+              r={HANDLE_SIZE / zoom}
               fill="white"
               stroke="#4A90E2"
-              strokeWidth={2 / camera.z}
+              strokeWidth={2 / zoom}
               style={{ cursor: cursors[type] }}
               onPointerDown={(e) => handlePointerDown(e, type)}
               onPointerUp={handlePointerUp}
@@ -336,8 +339,8 @@ export function SelectionBox({
           x2={handles.rotate[0]}
           y2={handles.rotate[1]}
           stroke="#4A90E2"
-          strokeWidth={2 / camera.z}
-          strokeDasharray={`${3 / camera.z},${3 / camera.z}`}
+          strokeWidth={2 / zoom}
+          strokeDasharray={`${3 / zoom},${3 / zoom}`}
           pointerEvents="none"
           transform={`rotate(${rotation} ${centerX} ${centerY})`}
         />
@@ -350,10 +353,10 @@ export function SelectionBox({
             <circle
               cx={rotatedX}
               cy={rotatedY}
-              r={HANDLE_SIZE / camera.z}
+              r={HANDLE_SIZE / zoom}
               fill="#4A90E2"
               stroke="white"
-              strokeWidth={2 / camera.z}
+              strokeWidth={2 / zoom}
               style={{ cursor: cursors.rotate }}
               onPointerDown={(e) => handlePointerDown(e, "rotate")}
               onPointerUp={handlePointerUp}
