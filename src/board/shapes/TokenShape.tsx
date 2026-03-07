@@ -1,6 +1,6 @@
 import React from "react";
 import { Shape as ShapeType } from "../../types/canvas";
-import { colors } from "../../utils/colors";
+import { getContrastColor } from "../../utils/colors";
 import { DOMVector } from "../../utils/vec";
 
 const TokenShape = ({
@@ -41,7 +41,7 @@ const TokenShape = ({
           textAnchor="middle"
           dominantBaseline="middle"
           style={{
-            fill: colors[color as keyof typeof colors] ?? "black",
+            fill: getContrastColor(color ?? "#DCE1DE"),
             fontSize: `${fontSize}px`,
             pointerEvents: "none",
             userSelect: "none",
