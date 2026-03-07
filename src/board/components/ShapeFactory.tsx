@@ -4,7 +4,7 @@ import ImageShape from "../shapes/ImageShape";
 import RectangleShape from "../shapes/RectangleShape";
 import TokenShape from "../shapes/TokenShape";
 import { Shape as ShapeType } from "../../types/canvas";
-import { getBounds } from "../../utils/canvas_utils";
+import { getShapeRotationTransform } from "./shapeTransforms";
 
 export const STACKING_OFFSET = 10;
 
@@ -27,17 +27,7 @@ function ShapeFactory({
   stackIndex: number;
   onToggleTap?: (shapeId: string) => void;
 }) {
-  const rotationCenter =
-    shape.type === "text"
-      ? getBounds(shape.text ?? "", 0, 0, shape.fontSize)
-      : {
-          width: Math.abs(shape.size[0]),
-          height: Math.abs(shape.size[1]),
-        };
-
-  const transform = `rotate(${shape.rotation || 0} ${
-    shape.point[0] + rotationCenter.width / 2
-  } ${shape.point[1] + rotationCenter.height / 2})`;
+  const transform = getShapeRotationTransform(shape);
 
   const editText = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();

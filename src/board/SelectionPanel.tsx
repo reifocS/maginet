@@ -6,6 +6,8 @@ import { useShapeStore } from "../hooks/useShapeStore";
 import { Datum } from "../hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "../types/canvas";
 import Input, { Textarea } from "../components/ui/Input";
+import SnapshotModal from "./components/SnapshotModal";
+import { DebugSnapshotImportResult } from "../debug/stateSnapshot";
 
 type TooltipFace = {
   name?: string;
@@ -312,6 +314,8 @@ export function SelectionPanel({
   setShapeType,
   isSnapEnabled,
   onToggleSnap,
+  getDebugSnapshotText,
+  onLoadDebugSnapshot,
 }: {
   onDrawCard: () => void;
   onNewGame: () => void;
@@ -339,6 +343,8 @@ export function SelectionPanel({
   untapAll: () => void;
   isSnapEnabled: boolean;
   onToggleSnap: () => void;
+  getDebugSnapshotText: () => string;
+  onLoadDebugSnapshot: (raw: string) => DebugSnapshotImportResult;
 }) {
   // Peer connection state
   const connectToPeer = usePeerStore((state) => state.connectToPeer);
@@ -428,6 +434,20 @@ export function SelectionPanel({
     );
   };
 
+  const openSnapshotModal = () => {
+    showModal(
+      "Snapshot",
+      (closeModal) => (
+        <SnapshotModal
+          getCurrentSnapshotText={getDebugSnapshotText}
+          onClose={closeModal}
+          onLoadSnapshot={onLoadDebugSnapshot}
+        />
+      ),
+      true
+    );
+  };
+
   return (
     <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
       <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4 max-[720px]:top-3 max-[720px]:left-3 max-[720px]:flex-col max-[720px]:items-start">
@@ -497,6 +517,9 @@ export function SelectionPanel({
           disabled={!canCopyPeerId}
         >
           {copied ? "Copied" : "Copy"}
+        </button>
+        <button className="selection-panel__pill" onClick={openSnapshotModal}>
+          Snapshot
         </button>
         <button
           className="help-button hidden h-7 w-7 items-center justify-center rounded-full border border-[#666] text-base font-bold shadow-[0_2px_8px_rgba(0,0,0,0.2)] max-[720px]:inline-flex"

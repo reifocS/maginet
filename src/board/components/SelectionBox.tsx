@@ -7,6 +7,7 @@ import { useCamera } from "../../hooks/useCamera";
 import {
   getDraggedRotation,
   getPointerAngleFromCenter,
+  getRotationHandleOffset,
 } from "./selectionBoxMath";
 
 type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rotate";
@@ -31,7 +32,6 @@ type DragSession = {
 };
 
 const HANDLE_SIZE = 8;
-const ROTATION_HANDLE_OFFSET = 30;
 
 // Keep sizing math aligned with what is actually rendered, especially for text.
 const getShapeDimensions = (shape: ShapeType) => {
@@ -70,6 +70,8 @@ export function SelectionBox({
 
   const { camera } = useCamera(); // SelectionBox needs camera for screenToCanvas in handlers.
 
+  // Thin shapes are overly sensitive when the rotation handle sits too close to center.
+  const rotationHandleOffset = getRotationHandleOffset(width, height, zoom);
 
   // Handle positions in unrotated space (we rotate them for display)
   const handles: Record<HandleType, [number, number]> = {
@@ -81,7 +83,7 @@ export function SelectionBox({
     s: [x + width / 2, y + height],
     sw: [x, y + height],
     w: [x, y + height / 2],
-    rotate: [x + width / 2, y - ROTATION_HANDLE_OFFSET],
+    rotate: [x + width / 2, y - rotationHandleOffset],
   };
 
   const cursors: Record<HandleType, string> = {
@@ -307,6 +309,7 @@ export function SelectionBox({
   };
 
   const handlePointerUp = (e: React.PointerEvent<SVGCircleElement>) => {
+    e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
     setDragSession(null);
 

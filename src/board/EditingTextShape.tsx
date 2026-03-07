@@ -2,6 +2,10 @@ import React from "react";
 import { getBounds } from "../utils/canvas_utils";
 import { Shape } from "../types/canvas";
 import { Textarea } from "../components/ui/Input";
+import {
+  getAdjustedPointForFixedRotatedTopLeft,
+  getShapeRotationTransform,
+} from "./components/shapeTransforms";
 
 interface EditableTextProps {
   editingTextShape?: Shape;
@@ -23,6 +27,7 @@ export default function EditableText({
 }: EditableTextProps) {
   const { point, text, fontSize } = editingTextShape!;
   const bounds = getBounds(text ?? "", point[0], point[1], fontSize);
+  const transform = getShapeRotationTransform(editingTextShape!);
 
   const inputWidth = bounds.width;
 
@@ -48,18 +53,37 @@ export default function EditableText({
   }
 
   const { x, y } = determineTextCoordinates();
+
+  function getUpdatedTextShapePatch(shape: Shape, updatedText: string) {
+    const nextBounds = getBounds(updatedText ?? "", 0, 0, shape.fontSize);
+    const nextSize: [number, number] = [nextBounds.width, nextBounds.height];
+
+    if (shape.type !== "text") {
+      return {
+        text: updatedText,
+        size: shape.size,
+      };
+    }
+
+    return {
+      text: updatedText,
+      size: nextSize,
+      point: getAdjustedPointForFixedRotatedTopLeft(
+        [shape.point[0], shape.point[1]],
+        { width: bounds.width, height: bounds.height },
+        { width: nextBounds.width, height: nextBounds.height },
+        shape.rotation || 0
+      ),
+    };
+  }
+
   function onTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const updatedText = normalizeText(e.target.value);
     setEditingText({ ...editingText, text: updatedText });
     setShapes((prevShapes) =>
       prevShapes.map((shape) =>
         shape.id === editingText.id
-          ? {
-              ...shape,
-              text: updatedText,
-              size:
-                shape.type === "text" ? [inputWidth, inputHeight] : shape.size,
-            }
+          ? { ...shape, ...getUpdatedTextShapePatch(shape, updatedText) }
           : shape
       )
     );
@@ -79,11 +103,7 @@ export default function EditableText({
         setShapes((prevShapes) =>
           prevShapes.map((shape) =>
             shape.id === editingText.id
-              ? {
-                  ...shape,
-                  text: updatedText,
-                  size: shape.type === "text" ? [inputWidth, inputHeight] : shape.size,
-                }
+              ? { ...shape, ...getUpdatedTextShapePatch(shape, updatedText) }
               : shape
           )
         );
@@ -100,10 +120,19 @@ export default function EditableText({
   };
 
   return (
-    <foreignObject x={x} y={y} height={bounds.height} width={bounds.width}>
+    <foreignObject
+      data-shape-id={editingTextShape?.id}
+      data-editing-shape-type={editingTextShape?.type}
+      x={x}
+      y={y}
+      height={bounds.height}
+      width={bounds.width}
+      transform={transform}
+    >
       <Textarea
         variant="unstyled"
         ref={inputRef}
+        data-editing-textarea="true"
         value={editingText.text ?? ""}
         onChange={onTextChange}
         onBlur={onTextBlur}

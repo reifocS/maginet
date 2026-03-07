@@ -32,6 +32,15 @@ import EditingTextShape from "./EditingTextShape";
 import { useGamePersistence } from "../hooks/useGamePersistence";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
 import { useObjectSnapping } from "../hooks/useObjectSnapping";
+import {
+  createDebugSnapshot,
+  DebugSnapshot,
+  DebugSnapshotApi,
+  DebugSnapshotImportResult,
+  normalizeDebugSnapshot,
+  parseDebugSnapshot,
+  serializeDebugSnapshot,
+} from "../debug/stateSnapshot";
 
 import {
   Card,
@@ -178,6 +187,7 @@ function Canvas() {
       : window.matchMedia("(max-width: 720px)").matches
   );
   const [showCounterControls, setShowCounterControls] = useState(false);
+  const [hasImportedDebugSnapshot, setHasImportedDebugSnapshot] = useState(false);
 
   // Snapping logic
   const {
@@ -197,6 +207,31 @@ function Canvas() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const drawCardRef = useRef<() => void>(() => {});
   const engageCardRef = useRef<() => void>(() => {});
+  const debugSnapshotHandlersRef = useRef<{
+    exportSnapshot: () => DebugSnapshot;
+    exportSnapshotText: () => string;
+    importSnapshot: (input: string | DebugSnapshot) => DebugSnapshotImportResult;
+  }>({
+    exportSnapshot: () =>
+      createDebugSnapshot({
+        capturedAt: 0,
+        deckParam: "",
+        cardState: { cards: [], deck: [] },
+        shapes: [],
+        selectedShapeIds: [],
+        editingText: null,
+        camera: { x: 0, y: 0, z: 1 },
+        mode: "select",
+        shapeType: "text",
+        isSnapEnabled: false,
+        showCounterControls: false,
+        selectedHandCardId: null,
+        connectedPeerIds: [],
+        meta: {},
+      }),
+    exportSnapshotText: () => "",
+    importSnapshot: () => ({ ok: false, error: "The snapshot format is not valid." }),
+  });
   const applyZoomStepRef = useRef(applyZoomStep);
   applyZoomStepRef.current = applyZoomStep;
 
@@ -414,6 +449,7 @@ function Canvas() {
     setShapeType("text");
     setShowCounterControls(false);
     setSelectedHandCardId(null);
+    setHasImportedDebugSnapshot(false);
     clearSmartGuides();
     setSessionHydrationStatus("none");
 
@@ -653,6 +689,114 @@ function Canvas() {
     rDragging.current = newRef;
   };
 
+  const exportDebugSnapshot = () =>
+    createDebugSnapshot({
+      capturedAt: Date.now(),
+      deckParam: normalizedDeckParam,
+      cardState,
+      shapes,
+      selectedShapeIds,
+      editingText,
+      camera: cameraRef.current,
+      mode,
+      shapeType,
+      isSnapEnabled,
+      showCounterControls,
+      selectedHandCardId,
+      connectedPeerIds: Array.from(new Set(connections.keys())),
+      meta: {
+        href: typeof window === "undefined" ? undefined : window.location.href,
+        peerId: peer?.id,
+        userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+        viewport:
+          typeof window === "undefined"
+            ? undefined
+            : {
+                width: window.innerWidth,
+                height: window.innerHeight,
+              },
+      },
+    });
+
+  const exportDebugSnapshotText = () =>
+    serializeDebugSnapshot(exportDebugSnapshot());
+
+  const importDebugSnapshot = (
+    input: string | DebugSnapshot
+  ): DebugSnapshotImportResult => {
+    const snapshot =
+      typeof input === "string"
+        ? parseDebugSnapshot(input)
+        : normalizeDebugSnapshot(input);
+
+    if (!snapshot) {
+      return { ok: false, error: "The snapshot format is not valid." };
+    }
+
+    const restoredShapes = snapshot.shapes;
+    const restoredShapeIds = new Set(restoredShapes.map((shape) => shape.id));
+    const selectedIds = snapshot.selectedShapeIds.filter((id) =>
+      restoredShapeIds.has(id)
+    );
+    const editingTextState =
+      snapshot.editingText && restoredShapeIds.has(snapshot.editingText.id)
+        ? snapshot.editingText
+        : null;
+    const selectedImageShape =
+      selectedIds.length === 1
+        ? restoredShapes.find(
+            (shape) => shape.id === selectedIds[0] && shape.type === "image"
+          )
+        : null;
+    const selectedHandCard =
+      snapshot.selectedHandCardId &&
+      snapshot.cardState.cards.some((card) => card.id === snapshot.selectedHandCardId)
+        ? snapshot.selectedHandCardId
+        : null;
+
+    dispatch({ type: "SET_STATE", payload: snapshot.cardState });
+    useShapeStore.setState({
+      shapes: restoredShapes,
+      selectedShapeIds: selectedIds,
+      shapeInCreation: null,
+      editingText: editingTextState,
+      history: { past: [], future: [] },
+      canUndo: false,
+      canRedo: false,
+      isDraggingShape: false,
+      isResizingShape: false,
+      isRotatingShape: false,
+    });
+    applyCameraImmediate(snapshot.camera);
+    setMode(snapshot.mode);
+    setShapeType(snapshot.shapeType);
+    setDragVector(null);
+    setIsDragging(false);
+    rDragging.current = null;
+    setIsPanning(false);
+    setLastPanPosition(null);
+    setShowCounterControls(Boolean(snapshot.showCounterControls && selectedImageShape));
+    setSelectedHandCardId(selectedHandCard);
+    setHasImportedDebugSnapshot(true);
+    clearSmartGuides();
+    setSessionHydrationStatus("none");
+
+    if (editingTextState) {
+      window.setTimeout(() => {
+        inputRef.current?.focus();
+        const end = inputRef.current?.value.length ?? 0;
+        inputRef.current?.setSelectionRange(end, end);
+      }, 0);
+    }
+
+    toast("Snapshot loaded", { id: "debug-snapshot-loaded" });
+    return { ok: true, snapshot };
+  };
+
+  debugSnapshotHandlersRef.current.exportSnapshot = exportDebugSnapshot;
+  debugSnapshotHandlersRef.current.exportSnapshotText = exportDebugSnapshotText;
+  debugSnapshotHandlersRef.current.importSnapshot = importDebugSnapshot;
+
   // Effects
   useEffect(() => {
     if (!isDraggingShape || mode !== "select" || !isSnapEnabled) {
@@ -661,12 +805,36 @@ function Canvas() {
   }, [clearSmartGuides, isDraggingShape, isSnapEnabled, mode]);
 
   useEffect(() => {
-    if (!data || sessionHydrationStatus === "pending") return;
+    if (!data || sessionHydrationStatus === "pending" || hasImportedDebugSnapshot) return;
     if (sessionHydrationStatus === "restored") return;
     const initialDeck: Card[] = mapDataToCards(data);
     dispatch({ type: "INITIALIZE_DECK", payload: initialDeck });
     toast(`Deck initialized with ${initialDeck.length} cards`);
-  }, [data, dispatch, sessionHydrationStatus]);
+  }, [data, dispatch, hasImportedDebugSnapshot, sessionHydrationStatus]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const debugApi: DebugSnapshotApi = {
+      exportSnapshot: () => debugSnapshotHandlersRef.current.exportSnapshot(),
+      exportSnapshotText: () => debugSnapshotHandlersRef.current.exportSnapshotText(),
+      importSnapshot: (input) => {
+        try {
+          return debugSnapshotHandlersRef.current.importSnapshot(input);
+        } catch {
+          return { ok: false, error: "The snapshot format is not valid." };
+        }
+      },
+    };
+
+    window.__MAGINET_DEBUG__ = debugApi;
+
+    return () => {
+      if (window.__MAGINET_DEBUG__ === debugApi) {
+        delete window.__MAGINET_DEBUG__;
+      }
+    };
+  }, []);
 
 
   useKeyboardShortcuts({
@@ -950,6 +1118,14 @@ function Canvas() {
           untapAll={untapAll}
           isSnapEnabled={isSnapEnabled}
           onToggleSnap={() => setIsSnapEnabled((prev) => !prev)}
+          getDebugSnapshotText={exportDebugSnapshotText}
+          onLoadDebugSnapshot={(raw) => {
+            try {
+              return importDebugSnapshot(raw);
+            } catch {
+              return { ok: false, error: "The snapshot format is not valid." };
+            }
+          }}
         />
       </div>
 
