@@ -11,6 +11,7 @@ import ContextMenu from "./ContextMenu";
 import CounterControls from "./components/CounterControls";
 import SetupScreen from "./components/SetupScreen";
 import HelpPanel from "./components/HelpPanel";
+import PropertiesPanel from "./components/PropertiesPanel";
 import ShortcutDock from "./components/ShortcutDock";
 import useCards, {
   Datum,
@@ -951,6 +952,8 @@ function Canvas() {
           onToggleSnap={() => setIsSnapEnabled((prev) => !prev)}
         />
       </div>
+
+      <PropertiesPanel />
 
       <Hand
         cards={cards}
