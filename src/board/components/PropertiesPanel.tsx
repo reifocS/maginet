@@ -41,25 +41,22 @@ export default function PropertiesPanel() {
     historyBatchShapeIdRef.current = null;
   }, [selectedShape?.id]);
 
-  const ensureHistorySnapshot = React.useCallback(() => {
+  function ensureHistorySnapshot() {
     if (!selectedShape) return;
     if (historyBatchShapeIdRef.current === selectedShape.id) return;
     pushHistory();
     historyBatchShapeIdRef.current = selectedShape.id;
-  }, [pushHistory, selectedShape]);
+  }
 
-  const resetHistoryBatch = React.useCallback(() => {
+  function resetHistoryBatch() {
     historyBatchShapeIdRef.current = null;
-  }, []);
+  }
 
-  const handleColorChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (!selectedShape) return;
-      ensureHistorySnapshot();
-      updateShape(selectedShape.id, { color: event.currentTarget.value });
-    },
-    [ensureHistorySnapshot, selectedShape, updateShape]
-  );
+  function handleColorChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!selectedShape) return;
+    ensureHistorySnapshot();
+    updateShape(selectedShape.id, { color: event.currentTarget.value });
+  }
 
   if (!hasColorProperty) {
     return null;
@@ -84,4 +81,3 @@ export default function PropertiesPanel() {
     </label>
   );
 }
-
