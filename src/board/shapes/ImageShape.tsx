@@ -17,7 +17,7 @@ const ImageShape = ({
   const [width, height] = size;
 
   return (
-    <g {...commonProps}>
+    <g data-shape-id={shape.id} data-shape-type="image" {...commonProps}>
       <image
         className="card-image transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         href={isFlipped ? "https://i.imgur.com/LdOBU1I.jpeg" : src?.[srcIndex]}

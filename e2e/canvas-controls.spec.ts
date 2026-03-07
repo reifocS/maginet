@@ -13,16 +13,12 @@ test.describe("Canvas controls", () => {
 
     const selectTool = page.locator("input#select");
     const textTool = page.locator("input#create");
-    const tokenTool = page.locator("input#add");
     const rectangleTool = page.locator("input#rectangle");
 
     await expect(selectTool).toBeChecked();
 
     await page.locator('.shape-type-option[title="Text"]').click();
     await expect(textTool).toBeChecked();
-
-    await page.locator('.shape-type-option[title="Token"]').click();
-    await expect(tokenTool).toBeChecked();
 
     await page.locator('.shape-type-option[title="Rectangle"]').click();
     await expect(rectangleTool).toBeChecked();

@@ -19,7 +19,12 @@ const RectangleShape = ({
   }) translate(${x} ${y})`;
 
   return (
-    <g transform={transform} {...commonProps}>
+    <g
+      data-shape-id={shape.id}
+      data-shape-type="rectangle"
+      transform={transform}
+      {...commonProps}
+    >
       <rect
         width={width}
         height={height}

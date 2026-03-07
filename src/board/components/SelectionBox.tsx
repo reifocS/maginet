@@ -4,6 +4,10 @@ import { DOMVector, screenToCanvas } from "../../utils/vec";
 import { getBounds } from "../../utils/canvas_utils";
 import { useShapeStore } from "../../hooks/useShapeStore";
 import { useCamera } from "../../hooks/useCamera";
+import {
+  getDraggedRotation,
+  getPointerAngleFromCenter,
+} from "./selectionBoxMath";
 
 type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rotate";
 
@@ -17,6 +21,14 @@ interface SelectionBoxProps {
   ) => void;
   onRotate: (newRotation: number) => void;
 }
+
+type DragSession = {
+  handle: HandleType;
+  startPoint: [number, number];
+  originalShape: ShapeType;
+  originalCenter: [number, number];
+  startPointerAngle: number | null;
+};
 
 const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 30;
@@ -43,9 +55,7 @@ export function SelectionBox({
   onResize,
   onRotate,
 }: SelectionBoxProps) {
-  const [draggingHandle, setDraggingHandle] = useState<HandleType | null>(null);
-  const [dragStartPos, setDragStartPos] = useState<[number, number] | null>(null);
-  const [originalShape, setOriginalShape] = useState<ShapeType | null>(null);
+  const [dragSession, setDragSession] = useState<DragSession | null>(null);
 
   const { point, size, rotation = 0 } = shape;
   const { width, height } = getShapeDimensions(shape);
@@ -94,15 +104,27 @@ export function SelectionBox({
     e.currentTarget.setPointerCapture(e.pointerId);
 
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
-    setDraggingHandle(handle);
-    setDragStartPos([x, y]);
-    setOriginalShape({ ...shape });
+    const originalCenter: [number, number] = [centerX, centerY];
+    setDragSession({
+      handle,
+      startPoint: [x, y],
+      originalShape: {
+        ...shape,
+        point: [...shape.point],
+        size: [...shape.size],
+      },
+      originalCenter,
+      startPointerAngle:
+        handle === "rotate"
+          ? getPointerAngleFromCenter(originalCenter, [x, y])
+          : null,
+    });
 
     // Save history before operation starts
     const store = useShapeStore.getState();
     store.pushHistory();
 
-    if (handle === 'rotate') {
+    if (handle === "rotate") {
       useShapeStore.setState({ isRotatingShape: true });
     } else {
       useShapeStore.setState({ isResizingShape: true });
@@ -110,38 +132,48 @@ export function SelectionBox({
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!draggingHandle || !dragStartPos || !originalShape) return;
+    if (!dragSession) return;
 
     const { x: mouseX, y: mouseY } = screenToCanvas(
       { x: e.clientX, y: e.clientY },
       camera
     );
 
-    if (draggingHandle === "rotate") {
-      // Simple rotation: angle from center to mouse (+90° so "up" is 0°)
-      const dx = mouseX - centerX;
-      const dy = mouseY - centerY;
-      const angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
-      onRotate(angle);
+    if (dragSession.handle === "rotate") {
+      if (dragSession.startPointerAngle === null) return;
+
+      const currentPointerAngle = getPointerAngleFromCenter(
+        dragSession.originalCenter,
+        [mouseX, mouseY]
+      );
+      const nextRotation = getDraggedRotation(
+        dragSession.originalShape.rotation || 0,
+        dragSession.startPointerAngle,
+        currentPointerAngle
+      );
+
+      onRotate(nextRotation);
       return;
     }
 
     // ---------- Resize with simplified "center shift" ----------
     const originalVector = new DOMVector(
-      originalShape.point[0],
-      originalShape.point[1],
-      originalShape.size[0],
-      originalShape.size[1]
+      dragSession.originalShape.point[0],
+      dragSession.originalShape.point[1],
+      dragSession.originalShape.size[0],
+      dragSession.originalShape.size[1]
     );
     const originalRect = originalVector.toDOMRect();
     const origX = originalRect.x;
     const origY = originalRect.y;
-    const { width: origWidth, height: origHeight } = getShapeDimensions(originalShape);
-    const origRotation = originalShape.rotation || 0;
+    const { width: origWidth, height: origHeight } = getShapeDimensions(
+      dragSession.originalShape
+    );
+    const origRotation = dragSession.originalShape.rotation || 0;
 
     // 1) Mouse delta in screen space, then convert to the shape's local axes
-    const screenDeltaX = mouseX - dragStartPos[0];
-    const screenDeltaY = mouseY - dragStartPos[1];
+    const screenDeltaX = mouseX - dragSession.startPoint[0];
+    const screenDeltaY = mouseY - dragSession.startPoint[1];
 
     const negTheta = (-origRotation * Math.PI) / 180;
     const c = Math.cos(negTheta);
@@ -154,7 +186,7 @@ export function SelectionBox({
     let newHeight = origHeight;
     let newFontSize: number | undefined;
 
-    switch (draggingHandle) {
+    switch (dragSession.handle) {
       case "nw":
       case "w":
       case "sw":
@@ -166,7 +198,7 @@ export function SelectionBox({
         newWidth = origWidth + localDeltaX;
         break;
     }
-    switch (draggingHandle) {
+    switch (dragSession.handle) {
       case "nw":
       case "n":
       case "ne":
@@ -185,11 +217,13 @@ export function SelectionBox({
 
     // 3b) Lock aspect ratio for text by applying uniform scale
     let scaleForText: number | null = null;
-    if (originalShape.type === "text") {
+    if (dragSession.originalShape.type === "text") {
       const widthRatio = origWidth ? newWidth / origWidth : 1;
       const heightRatio = origHeight ? newHeight / origHeight : 1;
-      const isHorizontal = draggingHandle === "e" || draggingHandle === "w";
-      const isVertical = draggingHandle === "n" || draggingHandle === "s";
+      const isHorizontal =
+        dragSession.handle === "e" || dragSession.handle === "w";
+      const isVertical =
+        dragSession.handle === "n" || dragSession.handle === "s";
       const axisScale = isHorizontal
         ? widthRatio
         : isVertical
@@ -206,9 +240,15 @@ export function SelectionBox({
 
     // For text, recompute dimensions from measured bounds to account for padding,
     // so the pinned corner stays accurate.
-    if (originalShape.type === "text" && scaleForText) {
-      const nextFontSize = (originalShape.fontSize || 16) * scaleForText;
-      const measured = getBounds(originalShape.text ?? "", 0, 0, nextFontSize);
+    if (dragSession.originalShape.type === "text" && scaleForText) {
+      const nextFontSize =
+        (dragSession.originalShape.fontSize || 16) * scaleForText;
+      const measured = getBounds(
+        dragSession.originalShape.text ?? "",
+        0,
+        0,
+        nextFontSize
+      );
       newWidth = measured.width;
       newHeight = measured.height;
       newFontSize = nextFontSize;
@@ -221,16 +261,24 @@ export function SelectionBox({
 
     // Which opposite side/corner is pinned? (signs for local center shift)
     const sx =
-      draggingHandle === "e" || draggingHandle === "ne" || draggingHandle === "se"
+      dragSession.handle === "e" ||
+      dragSession.handle === "ne" ||
+      dragSession.handle === "se"
         ? +1
-        : draggingHandle === "w" || draggingHandle === "nw" || draggingHandle === "sw"
+        : dragSession.handle === "w" ||
+            dragSession.handle === "nw" ||
+            dragSession.handle === "sw"
           ? -1
           : 0;
 
     const sy =
-      draggingHandle === "s" || draggingHandle === "se" || draggingHandle === "sw"
+      dragSession.handle === "s" ||
+      dragSession.handle === "se" ||
+      dragSession.handle === "sw"
         ? +1
-        : draggingHandle === "n" || draggingHandle === "ne" || draggingHandle === "nw"
+        : dragSession.handle === "n" ||
+            dragSession.handle === "ne" ||
+            dragSession.handle === "nw"
           ? -1
           : 0;
 
@@ -260,9 +308,7 @@ export function SelectionBox({
 
   const handlePointerUp = (e: React.PointerEvent<SVGCircleElement>) => {
     e.currentTarget.releasePointerCapture(e.pointerId);
-    setDraggingHandle(null);
-    setDragStartPos(null);
-    setOriginalShape(null);
+    setDragSession(null);
 
     // Clear operation flags
     useShapeStore.setState({
@@ -295,7 +341,7 @@ export function SelectionBox({
   };
 
   return (
-    <g onPointerMove={handlePointerMove}>
+    <g data-selection-box-shape-id={shape.id} onPointerMove={handlePointerMove}>
       {/* Selection rectangle */}
       <rect
         x={x}
@@ -318,6 +364,7 @@ export function SelectionBox({
           return (
             <circle
               key={type}
+              data-selection-handle={type}
               cx={rotatedX}
               cy={rotatedY}
               r={HANDLE_SIZE / zoom}
@@ -351,6 +398,7 @@ export function SelectionBox({
           );
           return (
             <circle
+              data-selection-handle="rotate"
               cx={rotatedX}
               cy={rotatedY}
               r={HANDLE_SIZE / zoom}

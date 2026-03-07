@@ -359,26 +359,6 @@ function Canvas() {
     dispatch({ type: "MULLIGAN" });
   };
 
-  const addToken = () => {
-    const center = screenToCanvas(
-      { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-      camera
-    );
-    const [snappedX, snappedY] = snapPointToGrid([center.x, center.y]);
-    setShapes((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        type: "token",
-        point: [snappedX, snappedY],
-        size: [55, 55],
-        srcIndex: 0,
-        fontSize: 12,
-        text: "+1/+1",
-      },
-    ]);
-  };
-
   const sendBackToHand = () => {
     const selectedCards: Card[] = getSelectedImages();
     dispatch({ type: "SEND_TO_HAND", payload: selectedCards });
@@ -955,7 +935,6 @@ function Canvas() {
           cards={data}
           relatedCards={relatedCards}
           addCardToHand={addCardToHand}
-          addToken={addToken}
           changeColor={changeColorOnSelected}
           shapeType={shapeType}
           setShapeType={setShapeType}

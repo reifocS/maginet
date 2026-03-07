@@ -18,6 +18,8 @@ const TextShape = ({
   const bounds = getBounds(text ?? "", point[0], point[1], fontSize);
   return (
     <foreignObject
+      data-shape-id={shape.id}
+      data-shape-type="text"
       x={point[0]}
       y={point[1]}
       width={bounds.width}

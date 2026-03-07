@@ -19,7 +19,12 @@ const TokenShape = ({
 
   const { x, y, width, height } = coordinates;
   return (
-    <g {...commonProps} transform={transform}>
+    <g
+      data-shape-id={shape.id}
+      data-shape-type="token"
+      {...commonProps}
+      transform={transform}
+    >
       <ellipse
         cx={x + width / 2}
         cy={y + height / 2}
