@@ -11,6 +11,7 @@ import ContextMenu from "./ContextMenu";
 import CounterControls from "./components/CounterControls";
 import SetupScreen from "./components/SetupScreen";
 import HelpPanel from "./components/HelpPanel";
+import PropertiesPanel from "./components/PropertiesPanel";
 import ShortcutDock from "./components/ShortcutDock";
 import useCards, {
   Datum,
@@ -357,26 +358,6 @@ function Canvas() {
 
   const mulligan = () => {
     dispatch({ type: "MULLIGAN" });
-  };
-
-  const addToken = () => {
-    const center = screenToCanvas(
-      { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-      camera
-    );
-    const [snappedX, snappedY] = snapPointToGrid([center.x, center.y]);
-    setShapes((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        type: "token",
-        point: [snappedX, snappedY],
-        size: [55, 55],
-        srcIndex: 0,
-        fontSize: 12,
-        text: "+1/+1",
-      },
-    ]);
   };
 
   const sendBackToHand = () => {
@@ -955,7 +936,6 @@ function Canvas() {
           cards={data}
           relatedCards={relatedCards}
           addCardToHand={addCardToHand}
-          addToken={addToken}
           changeColor={changeColorOnSelected}
           shapeType={shapeType}
           setShapeType={setShapeType}
@@ -972,6 +952,8 @@ function Canvas() {
           onToggleSnap={() => setIsSnapEnabled((prev) => !prev)}
         />
       </div>
+
+      <PropertiesPanel />
 
       <Hand
         cards={cards}

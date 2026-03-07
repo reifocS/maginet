@@ -325,7 +325,6 @@ export function SelectionPanel({
   addCardToHand: (card: Datum) => void;
   cards?: Datum[];
   relatedCards?: Datum[];
-  addToken: () => void;
   changeColor: (color: string) => void;
   deck?: Card[];
   shapeType: ShapeType;
@@ -390,7 +389,6 @@ export function SelectionPanel({
   const canCopyPeerId = Boolean(peer?.id);
   const isSelectMode = mode === "select";
   const isTextMode = mode === "create" && shapeType === "text";
-  const isTokenMode = mode === "create" && shapeType === "token";
   const isRectangleMode = mode === "create" && shapeType === "rectangle";
 
   const handleCopyPeerId = () => {
@@ -587,29 +585,6 @@ export function SelectionPanel({
             />
             <label htmlFor="create" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isTextMode ? "font-bold text-black" : ""}`}>
               <span className="tool-icon text-[18px] font-semibold leading-none">T</span>
-            </label>
-          </div>
-          <div
-            className={`shape-type-option win-bevel-raised relative flex h-14 min-h-[44px] w-14 min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] bg-win-button text-win-text transition-[background,border-color] duration-100 hover:bg-win-panel ${
-              isTokenMode
-                ? "[border-color:#5b5b5b_#ffffff_#ffffff_#5b5b5b] [box-shadow:inset_1px_1px_0_#8a8a8a,inset_-1px_-1px_0_#f6f6f6]"
-                : ""
-            }`}
-            title="Token"
-          >
-            <input
-              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
-              type="radio"
-              id="add"
-              name="action"
-              checked={isTokenMode}
-              onChange={() => {
-                setMode("create");
-                setShapeType("token");
-              }}
-            />
-            <label htmlFor="add" className={`flex w-full cursor-pointer flex-col items-center gap-0.5 ${isTokenMode ? "font-bold text-black" : ""}`}>
-              <span className="tool-icon text-[18px] font-semibold leading-none">O</span>
             </label>
           </div>
           <div
