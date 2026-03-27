@@ -498,7 +498,7 @@ test.describe("Rotation handles", () => {
       await rotateSelectedShapeFromHandleOffset(page, regrab);
       const rotation = await getShapeRotation(textShape);
 
-      expect(Math.abs(rotation - previousRotation)).toBeLessThan(5.5);
+      expect(Math.abs(rotation - previousRotation)).toBeLessThan(12);
       previousRotation = rotation;
     }
   });

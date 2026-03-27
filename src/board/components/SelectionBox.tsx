@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { Shape as ShapeType } from "../../types/canvas";
+import { Camera, Shape as ShapeType } from "../../types/canvas";
 import { DOMVector, screenToCanvas } from "../../utils/vec";
 import { getBounds } from "../../utils/canvas_utils";
 import { useShapeStore } from "../../hooks/useShapeStore";
-import { useCamera } from "../../hooks/useCamera";
 import {
   getDraggedRotation,
   getPointerAngleFromCenter,
@@ -15,6 +14,7 @@ type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rotate";
 interface SelectionBoxProps {
   shape: ShapeType;
   zoom: number;
+  cameraRef: React.RefObject<Camera>;
   onResize: (
     newSize: [number, number],
     newPoint: [number, number],
@@ -52,6 +52,7 @@ const getShapeDimensions = (shape: ShapeType) => {
 export function SelectionBox({
   shape,
   zoom,
+  cameraRef,
   onResize,
   onRotate,
 }: SelectionBoxProps) {
@@ -67,8 +68,6 @@ export function SelectionBox({
   // Use normalized bounds so handles work even if size components are negative.
   const centerX = x + width / 2;
   const centerY = y + height / 2;
-
-  const { camera } = useCamera(); // SelectionBox needs camera for screenToCanvas in handlers.
 
   // Thin shapes are overly sensitive when the rotation handle sits too close to center.
   const rotationHandleOffset = getRotationHandleOffset(width, height, zoom);
@@ -105,6 +104,8 @@ export function SelectionBox({
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
 
+    const camera = cameraRef.current;
+    if (!camera) return;
     const { x, y } = screenToCanvas({ x: e.clientX, y: e.clientY }, camera);
     const originalCenter: [number, number] = [centerX, centerY];
     setDragSession({
@@ -136,6 +137,8 @@ export function SelectionBox({
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!dragSession) return;
 
+    const camera = cameraRef.current;
+    if (!camera) return;
     const { x: mouseX, y: mouseY } = screenToCanvas(
       { x: e.clientX, y: e.clientY },
       camera
