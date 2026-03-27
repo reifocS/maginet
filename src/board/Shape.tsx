@@ -209,6 +209,7 @@ export function Shape({
         <SelectionBox
           shape={shape}
           zoom={zoom}
+          cameraRef={cameraRef}
           onResize={handleResize}
           onRotate={handleRotate}
         />
