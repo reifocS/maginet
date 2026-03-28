@@ -35,15 +35,74 @@ async function main() {
   console.error(`[maginet-agent] WebSocket server listening on port ${assignedPort}`);
   console.error(`[maginet-agent] Visibility: ${visibility}`);
 
+  // Send current shapes to the browser when it connects
+  wsServer.onConnect(() => {
+    const currentShapes = gameState.getAgentShapes();
+    if (currentShapes.length > 0) {
+      wsServer.send({
+        type: "sync:channel-snapshot",
+        payload: {
+          channel: "shapes:v1",
+          snapshot: {
+            agent: currentShapes,
+          },
+        },
+        meta: {
+          version: 1,
+          roomId: "maginet-agent",
+          from: "agent",
+          msgId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          ts: Date.now(),
+        },
+      });
+    }
+  });
+
+  // Broadcast agent shape changes to the browser via sync protocol
+  gameState.subscribeShapes((nextShapes) => {
+    wsServer.send({
+      type: "sync:channel-snapshot",
+      payload: {
+        channel: "shapes:v1",
+        snapshot: {
+          agent: nextShapes,
+        },
+      },
+      meta: {
+        version: 1,
+        roomId: "maginet-agent",
+        from: "agent",
+        msgId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        ts: Date.now(),
+      },
+    });
+  });
+
   // Listen for sync messages from the browser
   wsServer.onMessage((message) => {
-    if (message.type === "sync:channel-snapshot" || message.type === "sync:channel-patch") {
-      const payload = message.payload as Record<string, unknown>;
-      if (payload && typeof payload === "object") {
-        for (const [peerId, shapes] of Object.entries(payload)) {
+    if (message.type === "sync:channel-snapshot") {
+      const payload = message.payload as { channel?: string; snapshot?: Record<string, unknown> };
+      const snapshot = payload?.snapshot;
+      if (snapshot && typeof snapshot === "object") {
+        for (const [peerId, shapes] of Object.entries(snapshot)) {
           if (Array.isArray(shapes)) {
             remoteShapes[peerId] = shapes as Shape[];
           }
+        }
+      }
+    } else if (message.type === "sync:channel-patch") {
+      const payload = message.payload as { channel?: string; patch?: { peerPatches?: Array<{ peerId: string; patch: { upserts?: Shape[]; removedIds?: string[] } }>; removedPeerIds?: string[] } };
+      if (payload?.patch?.peerPatches) {
+        for (const { peerId, patch } of payload.patch.peerPatches) {
+          const current = remoteShapes[peerId] ?? [];
+          const byId = new Map(current.map((s) => [s.id, s]));
+          if (patch.removedIds) {
+            for (const id of patch.removedIds) byId.delete(id);
+          }
+          if (patch.upserts) {
+            for (const shape of patch.upserts) byId.set(shape.id, shape);
+          }
+          remoteShapes[peerId] = Array.from(byId.values());
         }
       }
     }

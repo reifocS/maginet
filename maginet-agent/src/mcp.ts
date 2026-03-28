@@ -1,4 +1,4 @@
-import type { AgentGameState, Shape, Counter } from "./state.js";
+import type { AgentGameState, Shape, Counter, Card } from "./state.js";
 import type { AgentWebSocketServer } from "./server.js";
 import { type Visibility, filterGameState } from "./visibility.js";
 
@@ -49,14 +49,29 @@ export function createToolHandlers(ctx: ToolContext) {
     },
 
     async getHand(_: Record<string, unknown>): Promise<ToolResult> {
-      return ok(state.getHand());
+      const hand = state.getHand().map((card) => ({
+        ...card,
+        name: card.meta?.name,
+        manaCost: card.meta?.manaCost,
+        typeLine: card.meta?.typeLine,
+        oracleText: card.meta?.oracleText,
+        power: card.meta?.power,
+        toughness: card.meta?.toughness,
+      }));
+      return ok(hand);
     },
 
     async getBoardState(_: Record<string, unknown>): Promise<ToolResult> {
-      const board: Record<string, Shape[]> = {
-        agent: state.getAgentShapes(),
-        ...ctx.remoteShapes,
+      const enrichShape = (shape: Shape) => {
+        const meta = state.lookupShapeMeta(shape);
+        return meta ? { ...shape, cardName: meta.name, typeLine: meta.typeLine, oracleText: meta.oracleText, manaCost: meta.manaCost, power: meta.power, toughness: meta.toughness } : shape;
       };
+      const board: Record<string, (Shape & { cardName?: string; typeLine?: string; oracleText?: string; manaCost?: string; power?: string; toughness?: string })[]> = {
+        agent: state.getAgentShapes().map(enrichShape),
+      };
+      for (const [peerId, shapes] of Object.entries(ctx.remoteShapes)) {
+        board[peerId] = shapes.map(enrichShape);
+      }
       return ok(board);
     },
 
@@ -200,6 +215,41 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok({ shapeId, isFlipped: newFlipped });
     },
 
+    async placeText(args: Record<string, unknown>): Promise<ToolResult> {
+      const text = args.text as string;
+      const position = args.position as [number, number] | undefined;
+      const fontSize = (args.fontSize as number | undefined) ?? 24;
+      const color = (args.color as string | undefined) ?? "#ffffff";
+
+      const point = position ?? [100, 100];
+      const shape: Shape = {
+        id: generateId(),
+        point,
+        size: [200, 50],
+        type: "text",
+        text,
+        fontSize,
+        color,
+        srcIndex: 0,
+        rotation: 0,
+        isFlipped: false,
+      };
+
+      state.addAgentShape(shape);
+      return ok({ message: "Text placed.", shape });
+    },
+
+    async updateText(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const text = args.text as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      state.updateAgentShape(shapeId, { text });
+      return ok({ shapeId, text });
+    },
+
     async transformCard(args: Record<string, unknown>): Promise<ToolResult> {
       const shapeId = args.shapeId as string;
       const shape = state.findAgentShape(shapeId);
@@ -332,6 +382,32 @@ export const TOOL_DEFINITIONS = [
         label: { type: "string" },
       },
       required: ["shapeId", "label"],
+    },
+  },
+  {
+    name: "placeText",
+    description: "Place a text label on the board (e.g. for HP counters, notes).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+        position: { type: "array", items: { type: "number" } },
+        fontSize: { type: "number" },
+        color: { type: "string" },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "updateText",
+    description: "Update the text content of an existing text shape.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shapeId: { type: "string" },
+        text: { type: "string" },
+      },
+      required: ["shapeId", "text"],
     },
   },
   {

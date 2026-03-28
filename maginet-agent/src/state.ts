@@ -1,6 +1,16 @@
+export interface CardMeta {
+  name: string;
+  typeLine?: string;
+  oracleText?: string;
+  manaCost?: string;
+  power?: string;
+  toughness?: string;
+}
+
 export interface Card {
   id: string;
   src: string[];
+  meta?: CardMeta;
 }
 
 export interface CardState {
@@ -48,6 +58,16 @@ export class AgentGameState {
   private cardState: CardState = { cards: [], deck: [], actionId: 0 };
   private agentShapes: Shape[] = [];
   private shapeListeners = new Set<(next: Shape[], prev: Shape[]) => void>();
+  private cardMetaByImage = new Map<string, CardMeta>();
+
+  lookupCardMeta(imageUrl: string): CardMeta | undefined {
+    return this.cardMetaByImage.get(imageUrl);
+  }
+
+  lookupShapeMeta(shape: Shape): CardMeta | undefined {
+    if (!shape.src?.length) return undefined;
+    return this.cardMetaByImage.get(shape.src[0]);
+  }
 
   getHand(): Card[] {
     return this.cardState.cards;
@@ -95,6 +115,12 @@ export class AgentGameState {
       deck: cards.map((c) => ({ ...c })),
       cards: [],
     };
+    // Build image URL → metadata lookup
+    for (const card of cards) {
+      if (card.meta && card.src.length > 0) {
+        this.cardMetaByImage.set(card.src[0], card.meta);
+      }
+    }
   }
 
   drawCard(): Card | null {

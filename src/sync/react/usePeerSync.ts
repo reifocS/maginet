@@ -32,13 +32,17 @@ const localPlayerName = generatePlayerName();
 const selectConnectedPeerSyncUiState = (
   state: PeerSyncUiState,
   connections: Map<string, unknown>,
+  agentPeerIds: Set<string>,
   localPeerId?: string
 ): PeerSyncUiState => {
   let changed = false;
 
+  const isConnected = (peerId: string) =>
+    connections.has(peerId) || agentPeerIds.has(peerId);
+
   const receivedDataMap = Object.fromEntries(
     Object.entries(state.receivedDataMap).filter(([peerId]) => {
-      const keep = connections.has(peerId);
+      const keep = isConnected(peerId);
       if (!keep) changed = true;
       return keep;
     })
@@ -46,7 +50,7 @@ const selectConnectedPeerSyncUiState = (
 
   const peerPresence = Object.fromEntries(
     Object.entries(state.peerPresence).filter(([peerId]) => {
-      const keep = connections.has(peerId) || peerId === localPeerId;
+      const keep = isConnected(peerId) || peerId === localPeerId;
       if (!keep) changed = true;
       return keep;
     })
@@ -54,7 +58,7 @@ const selectConnectedPeerSyncUiState = (
 
   const peerNames = Object.fromEntries(
     Object.entries(state.peerNames).filter(([peerId]) => {
-      const keep = connections.has(peerId) || peerId === localPeerId;
+      const keep = isConnected(peerId) || peerId === localPeerId;
       if (!keep) changed = true;
       return keep;
     })
@@ -72,7 +76,7 @@ const selectConnectedPeerSyncUiState = (
 
 export function usePeerSync(options: UsePeerSyncOptions) {
   const { cards, cardState } = options;
-  const { connectToPeer, initPeer, sendMessage, peer, error, connections } = usePeerStore();
+  const { connectToPeer, initPeer, sendMessage, peer, error, connections, connectedAgentPeerIds } = usePeerStore();
 
   const peerSyncUiState = useSyncExternalStore(
     subscribePeerSyncUiState,
@@ -80,8 +84,8 @@ export function usePeerSync(options: UsePeerSyncOptions) {
     getPeerSyncUiStateSnapshot
   );
   const connectedPeerSyncUiState = useMemo(
-    () => selectConnectedPeerSyncUiState(peerSyncUiState, connections, peer?.id),
-    [connections, peer?.id, peerSyncUiState]
+    () => selectConnectedPeerSyncUiState(peerSyncUiState, connections, connectedAgentPeerIds, peer?.id),
+    [connections, connectedAgentPeerIds, peer?.id, peerSyncUiState]
   );
 
   const lastLoggedActionId = useRef<number | undefined>(undefined);

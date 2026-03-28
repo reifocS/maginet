@@ -13,6 +13,11 @@ interface ScryfallCard {
   image_uris?: ScryfallImageUris;
   card_faces?: ScryfallCardFace[];
   name: string;
+  type_line?: string;
+  oracle_text?: string;
+  mana_cost?: string;
+  power?: string;
+  toughness?: string;
 }
 
 interface ScryfallCollection {
@@ -20,9 +25,19 @@ interface ScryfallCollection {
   not_found: Array<{ name: string }>;
 }
 
+export interface CardMeta {
+  name: string;
+  typeLine?: string;
+  oracleText?: string;
+  manaCost?: string;
+  power?: string;
+  toughness?: string;
+}
+
 export interface DeckCard {
   id: string;
   src: string[];
+  meta?: CardMeta;
 }
 
 function generateId(): string {
@@ -63,13 +78,23 @@ async function fetchCards(names: string[]): Promise<ScryfallCollection> {
 }
 
 function scryfallCardToDeckCard(card: ScryfallCard): DeckCard {
+  const meta: CardMeta = {
+    name: card.name,
+    typeLine: card.type_line,
+    oracleText: card.oracle_text,
+    manaCost: card.mana_cost,
+    power: card.power,
+    toughness: card.toughness,
+  };
+
   if (card.image_uris?.normal) {
-    return { id: generateId(), src: [card.image_uris.normal] };
+    return { id: generateId(), src: [card.image_uris.normal], meta };
   }
   if (card.card_faces?.length) {
     return {
       id: generateId(),
       src: card.card_faces.map((face) => face.image_uris.normal),
+      meta,
     };
   }
   throw new Error(`No image found for card: ${card.name}`);

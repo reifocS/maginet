@@ -20,6 +20,7 @@ export type MessageCallback<TPayload = unknown> = (
 export interface PeerState {
   peer: Peer | null;
   connections: Map<string, DataConnection>;
+  connectedAgentPeerIds: Set<string>;
   error: Error | null;
   initPeer: () => () => void;
   connectToPeer: (peerId: string) => void;
@@ -154,6 +155,7 @@ const acquirePeerRuntimeLease = () => {
 export const usePeerStore = create<PeerState>((_, get) => ({
   peer: null,
   connections: new Map(),
+  connectedAgentPeerIds: new Set(),
   error: null,
 
   initPeer: () => {
@@ -202,15 +204,27 @@ export const connectAgent = async (port: number = 3210): Promise<void> => {
     await agentSyncClient.stop();
   }
 
+  const agentPeerId = "agent";
+
   agentTransport = createWebSocketTransport({
     url: `ws://localhost:${port}`,
     onConnected: () => {
       console.log("[maginet] Agent connected");
+      usePeerStore.setState((state) => {
+        const next = new Set(state.connectedAgentPeerIds);
+        next.add(agentPeerId);
+        return { connectedAgentPeerIds: next };
+      });
     },
     onDisconnected: () => {
       console.log("[maginet] Agent disconnected");
       agentSyncClient = null;
       agentTransport = null;
+      usePeerStore.setState((state) => {
+        const next = new Set(state.connectedAgentPeerIds);
+        next.delete(agentPeerId);
+        return { connectedAgentPeerIds: next };
+      });
     },
     onError: (error) => {
       setPeerError(error);
@@ -236,6 +250,11 @@ export const disconnectAgent = async (): Promise<void> => {
     await agentSyncClient.stop();
     agentSyncClient = null;
     agentTransport = null;
+    usePeerStore.setState((state) => {
+      const next = new Set(state.connectedAgentPeerIds);
+      next.delete("agent");
+      return { connectedAgentPeerIds: next };
+    });
   }
 };
 
