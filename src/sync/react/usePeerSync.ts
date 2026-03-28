@@ -164,7 +164,14 @@ export function usePeerSync(options: UsePeerSyncOptions) {
     addActionLogEntry(entry);
 
     sendMessage({ type: "action-log", payload: entry });
-    sendMessage({ type: "card-state-sync", payload: { cards: cards.length, deck: options.deck.length } });
+    sendMessage({
+      type: "card-state-sync",
+      payload: {
+        cards: cards.length,
+        deck: options.deck.length,
+        hand: cards.map((c) => ({ id: c.id, src: c.src })),
+      },
+    });
   }, [cardState.actionId, cardState.lastAction, cardState.lastPlayedSrcs, cards.length, options.deck.length, peer?.id, sendMessage]);
 
   useEffect(() => {

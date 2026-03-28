@@ -106,8 +106,14 @@ async function main() {
     }
   };
 
+  // Debug: store recent raw message types
+  const debugMessages: Array<{ ts: number; type: string }> = [];
+
   // Listen for sync messages from the browser
   wsServer.onMessage((message) => {
+    debugMessages.push({ ts: Date.now(), type: message.type });
+    if (debugMessages.length > 50) debugMessages.shift();
+    console.error(`[maginet-agent] WS message: type=${message.type}`);
     if (message.type === "sync:channel-snapshot") {
       const payload = message.payload as { channel?: string; snapshot?: Record<string, unknown> };
       const snapshot = payload?.snapshot;
@@ -252,6 +258,17 @@ async function main() {
           isError: true,
         };
       }
+    }
+  );
+
+  // Debug tool to check what messages the agent receives
+  mcp.tool(
+    "debugMessages",
+    "Show recent WebSocket messages received (for debugging sync issues).",
+    async () => {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ connected: wsServer.isConnected(), messages: debugMessages }, null, 2) }],
+      };
     }
   );
 

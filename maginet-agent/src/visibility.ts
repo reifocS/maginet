@@ -12,6 +12,7 @@ export interface RawGameState {
   agentDeck: Card[];
   boardShapes: Record<string, Shape[]>;
   opponentHand: Card[];
+  opponentHandCount: number;
   opponentDeckSize: number;
 }
 
@@ -33,7 +34,7 @@ export function filterGameState(
     agentHand: raw.agentHand,
     agentDeckSize: raw.agentDeck.length,
     boardShapes: raw.boardShapes,
-    opponentHandCount: raw.opponentHand.length,
+    opponentHandCount: raw.opponentHandCount || raw.opponentHand.length,
     opponentDeckSize: raw.opponentDeckSize,
   };
 

@@ -16,6 +16,7 @@ const rawState: RawGameState = {
   agentDeck: [makeCard("d1"), makeCard("d2"), makeCard("d3")],
   boardShapes: { agent: [makeShape("s1")], opponent: [makeShape("s2")] },
   opponentHand: [makeCard("o1"), makeCard("o2"), makeCard("o3")],
+  opponentHandCount: 3,
   opponentDeckSize: 10,
 };
 
