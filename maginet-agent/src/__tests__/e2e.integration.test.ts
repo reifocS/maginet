@@ -26,6 +26,7 @@ describe("Agent E2E", () => {
       visibility: "full",
       remoteShapes,
       remoteCardState: null,
+      actionLog: [],
     });
 
     // 3. Simulate browser connecting

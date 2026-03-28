@@ -2,12 +2,21 @@ import type { AgentGameState, Shape, Counter, Card } from "./state.js";
 import type { AgentWebSocketServer } from "./server.js";
 import { type Visibility, filterGameState } from "./visibility.js";
 
+export interface ActionLogEntry {
+  timestamp: number;
+  action: string;
+  playerId?: string;
+  playerName?: string;
+  cardsInHand?: number;
+}
+
 export interface ToolContext {
   state: AgentGameState;
   server: AgentWebSocketServer;
   visibility: Visibility;
   remoteShapes: Record<string, Shape[]>;
   remoteCardState: { cards: number; deck: number } | null;
+  actionLog: ActionLogEntry[];
 }
 
 type ToolResult = {
@@ -250,6 +259,12 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok({ shapeId, text });
     },
 
+    async getActionLog(args: Record<string, unknown>): Promise<ToolResult> {
+      const limit = (args.limit as number | undefined) ?? 20;
+      const entries = ctx.actionLog.slice(-limit);
+      return ok(entries);
+    },
+
     async transformCard(args: Record<string, unknown>): Promise<ToolResult> {
       const shapeId = args.shapeId as string;
       const shape = state.findAgentShape(shapeId);
@@ -382,6 +397,16 @@ export const TOOL_DEFINITIONS = [
         label: { type: "string" },
       },
       required: ["shapeId", "label"],
+    },
+  },
+  {
+    name: "getActionLog",
+    description: "Get recent game actions from the opponent (draws, plays, shuffles, etc).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
     },
   },
   {

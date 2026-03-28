@@ -10,6 +10,7 @@ import {
 import { describeRandomEvent, generatePlayerName } from "../../utils/game";
 import {
   usePeerStore,
+  sendAgentMessage,
 } from "./peerStore";
 import {
   addActionLogEntry,
@@ -113,6 +114,7 @@ export function usePeerSync(options: UsePeerSyncOptions) {
         },
       });
     }
+    sendAgentMessage({ type: "action-log", payload: entry });
   };
 
   const rollCoin = () => {
@@ -167,6 +169,7 @@ export function usePeerSync(options: UsePeerSyncOptions) {
     if (peer?.id) {
       sendMessage({ type: "action-log", payload: entry });
     }
+    sendAgentMessage({ type: "action-log", payload: entry });
   }, [cardState.actionId, cardState.lastAction, cards.length, peer?.id, sendMessage]);
 
   useEffect(() => {

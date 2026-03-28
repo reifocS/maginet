@@ -29,6 +29,7 @@ describe("MCP tool handlers", () => {
       visibility: "full",
       remoteShapes: {},
       remoteCardState: null,
+      actionLog: [],
     });
   });
 
@@ -98,6 +99,7 @@ describe("MCP tool handlers", () => {
       visibility: "fair",
       remoteShapes: {},
       remoteCardState: null,
+      actionLog: [],
     });
 
     const result = await fairHandlers.getGameState({});
@@ -127,6 +129,7 @@ describe("MCP tool handlers", () => {
         ],
       },
       remoteCardState: null,
+      actionLog: [],
     });
 
     const result = await boardHandlers.getBoardState({});

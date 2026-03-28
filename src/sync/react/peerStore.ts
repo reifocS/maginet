@@ -261,3 +261,9 @@ export const disconnectAgent = async (): Promise<void> => {
 export const isAgentConnected = (): boolean => {
   return agentTransport !== null && agentSyncClient !== null;
 };
+
+export const sendAgentMessage = (message: Message): void => {
+  if (agentSyncClient) {
+    agentSyncClient.send(message);
+  }
+};

@@ -30,6 +30,7 @@ async function main() {
   const wsServer = new AgentWebSocketServer({ port });
   const remoteShapes: Record<string, Shape[]> = {};
   let remoteCardState: { cards: number; deck: number } | null = null;
+  const actionLog: Array<{ timestamp: number; action: string; playerId?: string; playerName?: string; cardsInHand?: number }> = [];
 
   const assignedPort = await wsServer.start();
   console.error(`[maginet-agent] WebSocket server listening on port ${assignedPort}`);
@@ -108,8 +109,30 @@ async function main() {
     }
 
     if (message.type === "action-log") {
-      const payload = message.payload as Record<string, unknown>;
-      console.error(`[maginet-agent] Action: ${JSON.stringify(payload)}`);
+      const payload = message.payload as { action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number };
+      actionLog.push({
+        timestamp: payload.timestamp ?? Date.now(),
+        action: payload.action ?? "unknown",
+        playerId: payload.playerId,
+        playerName: payload.playerName,
+        cardsInHand: payload.cardsInHand,
+      });
+      console.error(`[maginet-agent] Action: ${payload.playerName ?? payload.playerId}: ${payload.action}`);
+    }
+
+    if (message.type === "action-log-snapshot") {
+      const payload = message.payload as { entries?: Array<{ action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number }> };
+      if (payload.entries) {
+        for (const entry of payload.entries) {
+          actionLog.push({
+            timestamp: entry.timestamp ?? Date.now(),
+            action: entry.action ?? "unknown",
+            playerId: entry.playerId,
+            playerName: entry.playerName,
+            cardsInHand: entry.cardsInHand,
+          });
+        }
+      }
     }
 
     if (message.type === "card-state-sync") {
@@ -130,6 +153,7 @@ async function main() {
     server: wsServer,
     visibility,
     remoteShapes,
+    actionLog,
     get remoteCardState() {
       return remoteCardState;
     },
