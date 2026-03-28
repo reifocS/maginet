@@ -1,5 +1,8 @@
 export {
   usePeerStore,
+  connectAgent,
+  disconnectAgent,
+  isAgentConnected,
   type Message,
   type MessageCallback,
   type PeerState,
