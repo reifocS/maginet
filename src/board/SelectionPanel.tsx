@@ -1,7 +1,7 @@
 import React from "react";
 import { useLocation, Form } from "react-router-dom";
 import useModal from "../hooks/useModal";
-import { usePeerStore } from "../hooks/usePeerConnection";
+import { usePeerStore, connectAgent, disconnectAgent } from "../hooks/usePeerConnection";
 import { useShapeStore } from "../hooks/useShapeStore";
 import { Datum } from "../hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "../types/canvas";
@@ -448,6 +448,27 @@ export function SelectionPanel({
     );
   };
 
+  // Agent connection state
+  const [agentConnected, setAgentConnected] = React.useState(false);
+  const [agentConnecting, setAgentConnecting] = React.useState(false);
+
+  const handleToggleAgent = async () => {
+    if (agentConnected) {
+      void disconnectAgent();
+      setAgentConnected(false);
+      return;
+    }
+    setAgentConnecting(true);
+    try {
+      await connectAgent();
+      setAgentConnected(true);
+    } catch {
+      setAgentConnected(false);
+    } finally {
+      setAgentConnecting(false);
+    }
+  };
+
   return (
     <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
       <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4 max-[720px]:top-3 max-[720px]:left-3 max-[720px]:flex-col max-[720px]:items-start">
@@ -484,6 +505,13 @@ export function SelectionPanel({
         </button>
         <button className="selection-panel__pill" onClick={openConnectModal}>
           Connect
+        </button>
+        <button
+          className={`selection-panel__pill${agentConnected ? " is-active" : ""}`}
+          onClick={handleToggleAgent}
+          disabled={agentConnecting}
+        >
+          {agentConnecting ? "Connecting..." : agentConnected ? "Agent On" : "Agent"}
         </button>
         {isMobile && (
           <button className="selection-panel__pill danger" onClick={onMulligan}>

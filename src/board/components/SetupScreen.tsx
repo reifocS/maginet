@@ -6,6 +6,7 @@ import type Peer from "peerjs";
 import type { DataConnection } from "peerjs";
 import Button from "../../components/ui/Button";
 import Input, { Textarea } from "../../components/ui/Input";
+import { connectAgent, disconnectAgent } from "../../sync/react/peerStore";
 
 interface SetupScreenProps {
   deckParam: string;
@@ -40,6 +41,26 @@ export default function SetupScreen({
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupPeerId, setSetupPeerId] = useState("");
   const [setupCopied, setSetupCopied] = useState(false);
+  const [agentPort, setAgentPort] = useState("3210");
+  const [agentConnected, setAgentConnected] = useState(false);
+  const [agentConnecting, setAgentConnecting] = useState(false);
+
+  const handleConnectAgent = async () => {
+    setAgentConnecting(true);
+    try {
+      await connectAgent(parseInt(agentPort, 10));
+      setAgentConnected(true);
+    } catch {
+      setAgentConnected(false);
+    } finally {
+      setAgentConnecting(false);
+    }
+  };
+
+  const handleDisconnectAgent = () => {
+    void disconnectAgent();
+    setAgentConnected(false);
+  };
 
   const deckDraftCount = processRawText(deckDraft).length;
 
@@ -207,6 +228,44 @@ export default function SetupScreen({
                 </div>
                 <div className="setup-hint text-[11px] text-win-text-muted">
                   Share this ID so a friend can connect to you.
+                </div>
+              </div>
+              <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5 col-span-2 max-[720px]:col-span-1">
+                <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted">
+                  AI Agent
+                </label>
+                <div className="setup-input-row flex gap-2.5 items-center max-[720px]:flex-col max-[720px]:items-stretch">
+                  <Input
+                    className="setup-input w-24 p-3 text-[13px] leading-[1.4] shadow-none"
+                    type="text"
+                    value={agentPort}
+                    onChange={(event) => setAgentPort(event.target.value)}
+                    placeholder="Port"
+                    disabled={agentConnected}
+                  />
+                  {agentConnected ? (
+                    <Button
+                      type="button"
+                      className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
+                      onClick={handleDisconnectAgent}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+                      onClick={handleConnectAgent}
+                      disabled={agentConnecting}
+                    >
+                      {agentConnecting ? "Connecting..." : "Connect Agent"}
+                    </Button>
+                  )}
+                </div>
+                <div className="setup-hint text-[11px] text-win-text-muted">
+                  {agentConnected
+                    ? "Agent connected. It will appear as a player on the board."
+                    : "Connect to a local MCP agent for AI play or copilot advice."}
                 </div>
               </div>
             </div>

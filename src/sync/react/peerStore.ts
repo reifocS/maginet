@@ -8,6 +8,7 @@ import {
 } from "@vescofire/peersync";
 import { createPeerJsTransport } from "@vescofire/peersync/peerjs";
 import { createShapesSyncChannel } from "./shapesChannel";
+import { createWebSocketTransport } from "../transport/websocket";
 
 export type Message<TPayload = unknown> = SyncEnvelope<string, TPayload>;
 
@@ -19,6 +20,7 @@ export type MessageCallback<TPayload = unknown> = (
 export interface PeerState {
   peer: Peer | null;
   connections: Map<string, DataConnection>;
+  connectedAgentPeerIds: Set<string>;
   error: Error | null;
   initPeer: () => () => void;
   connectToPeer: (peerId: string) => void;
@@ -153,6 +155,7 @@ const acquirePeerRuntimeLease = () => {
 export const usePeerStore = create<PeerState>((_, get) => ({
   peer: null,
   connections: new Map(),
+  connectedAgentPeerIds: new Set(),
   error: null,
 
   initPeer: () => {
@@ -174,6 +177,11 @@ export const usePeerStore = create<PeerState>((_, get) => ({
 
   sendMessage: (message: Message, peerId?: string) => {
     syncClient.send(message, peerId);
+    // Forward to agent sync client so custom messages (action-log,
+    // heartbeat, etc.) reach the agent without manual sendAgentMessage calls
+    if (agentSyncClient) {
+      agentSyncClient.send(message, peerId);
+    }
   },
 
   disconnect: (peerId?: string) => {
@@ -192,3 +200,75 @@ export const usePeerStore = create<PeerState>((_, get) => ({
     return syncClient.onMessage(type, callback as MessageCallback);
   },
 }));
+
+let agentSyncClient: ReturnType<typeof createSyncClient> | null = null;
+let agentTransport: ReturnType<typeof createWebSocketTransport> | null = null;
+
+export const connectAgent = async (port: number = 3210): Promise<void> => {
+  if (agentSyncClient) {
+    await agentSyncClient.stop();
+  }
+
+  const agentPeerId = "agent";
+
+  agentTransport = createWebSocketTransport({
+    url: `ws://localhost:${port}`,
+    onConnected: () => {
+      console.log("[maginet] Agent connected");
+      usePeerStore.setState((state) => {
+        const next = new Set(state.connectedAgentPeerIds);
+        next.add(agentPeerId);
+        return { connectedAgentPeerIds: next };
+      });
+    },
+    onDisconnected: () => {
+      console.log("[maginet] Agent disconnected");
+      const client = agentSyncClient;
+      agentSyncClient = null;
+      agentTransport = null;
+      usePeerStore.setState((state) => {
+        const next = new Set(state.connectedAgentPeerIds);
+        next.delete(agentPeerId);
+        return { connectedAgentPeerIds: next };
+      });
+      // Clean up sync client subscriptions on unexpected disconnect
+      if (client) {
+        void client.stop();
+      }
+    },
+    onError: (error) => {
+      setPeerError(error);
+    },
+  });
+
+  agentSyncClient = createSyncClient({
+    roomId: "maginet-agent",
+    transport: agentTransport,
+  });
+
+  agentSyncClient.registerChannel(
+    createShapesSyncChannel({
+      getLocalPeerId: () => usePeerStore.getState().peer?.id ?? "browser",
+    })
+  );
+
+  await agentSyncClient.start();
+};
+
+export const disconnectAgent = async (): Promise<void> => {
+  if (agentSyncClient) {
+    await agentSyncClient.stop();
+    agentSyncClient = null;
+    agentTransport = null;
+    usePeerStore.setState((state) => {
+      const next = new Set(state.connectedAgentPeerIds);
+      next.delete("agent");
+      return { connectedAgentPeerIds: next };
+    });
+  }
+};
+
+export const isAgentConnected = (): boolean => {
+  return agentTransport !== null && agentSyncClient !== null;
+};
+
