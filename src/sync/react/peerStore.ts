@@ -218,6 +218,7 @@ export const connectAgent = async (port: number = 3210): Promise<void> => {
     },
     onDisconnected: () => {
       console.log("[maginet] Agent disconnected");
+      const client = agentSyncClient;
       agentSyncClient = null;
       agentTransport = null;
       usePeerStore.setState((state) => {
@@ -225,6 +226,10 @@ export const connectAgent = async (port: number = 3210): Promise<void> => {
         next.delete(agentPeerId);
         return { connectedAgentPeerIds: next };
       });
+      // Clean up sync client subscriptions on unexpected disconnect
+      if (client) {
+        void client.stop();
+      }
     },
     onError: (error) => {
       setPeerError(error);

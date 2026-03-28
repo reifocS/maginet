@@ -58,6 +58,7 @@ export function createWebSocketTransport(
         };
 
         ws.onclose = () => {
+          ws = null;
           closeListeners.forEach((listener) => listener(agentPeerId));
           options.onDisconnected?.();
         };

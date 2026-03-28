@@ -37,6 +37,10 @@ export class AgentWebSocketServer {
       this.wss.on("error", reject);
 
       this.wss.on("connection", (ws) => {
+        // Close previous client if browser reconnects (e.g. page refresh)
+        if (this.client && this.client.readyState === WebSocket.OPEN) {
+          this.client.close();
+        }
         this.client = ws;
         this.connectListeners.forEach((listener) => listener(this.browserPeerId));
 
