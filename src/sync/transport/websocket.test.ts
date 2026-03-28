@@ -46,14 +46,18 @@ class MockWebSocket {
 }
 
 describe("createWebSocketTransport", () => {
-  let mockWs: MockWebSocket;
+  // Shared container updated by the stub constructor so tests can access the
+  // live WebSocket instance without aliasing `this` to a local variable.
+  const wsRef: { current: MockWebSocket } = {
+    current: new MockWebSocket("ws://placeholder"),
+  };
 
   beforeEach(() => {
-    mockWs = new MockWebSocket("ws://localhost:3210");
     vi.stubGlobal("WebSocket", class extends MockWebSocket {
       constructor(url: string) {
         super(url);
-        mockWs = this;
+        // Assigning to a property does not alias `this` — no-this-alias compliant.
+        wsRef.current = this as unknown as MockWebSocket;
       }
     });
   });
@@ -72,8 +76,9 @@ describe("createWebSocketTransport", () => {
   it("connects on start and reports agent as peer", async () => {
     const transport = createWebSocketTransport({ url: "ws://localhost:3210" });
 
+    // transport.start() synchronously calls `new WebSocket(...)`, which updates wsRef.current
     const startPromise = transport.start();
-    mockWs.simulateOpen();
+    wsRef.current.simulateOpen();
     await startPromise;
 
     expect(transport.peers()).toEqual(["agent"]);
@@ -83,27 +88,27 @@ describe("createWebSocketTransport", () => {
     const transport = createWebSocketTransport({ url: "ws://localhost:3210" });
 
     const startPromise = transport.start();
-    mockWs.simulateOpen();
+    wsRef.current.simulateOpen();
     await startPromise;
 
     const envelope = { type: "test", payload: { value: 1 } };
     transport.send("agent", envelope);
 
-    expect(mockWs.sentMessages).toHaveLength(1);
-    expect(JSON.parse(mockWs.sentMessages[0])).toEqual(envelope);
+    expect(wsRef.current.sentMessages).toHaveLength(1);
+    expect(JSON.parse(wsRef.current.sentMessages[0])).toEqual(envelope);
   });
 
   it("receives and deserializes messages", async () => {
     const transport = createWebSocketTransport({ url: "ws://localhost:3210" });
 
     const startPromise = transport.start();
-    mockWs.simulateOpen();
+    wsRef.current.simulateOpen();
     await startPromise;
 
     const received: unknown[] = [];
     transport.onMessage((_, msg) => received.push(msg));
 
-    mockWs.simulateMessage(JSON.stringify({ type: "hello", payload: {} }));
+    wsRef.current.simulateMessage(JSON.stringify({ type: "hello", payload: {} }));
 
     expect(received).toHaveLength(1);
     expect(received[0]).toEqual({ type: "hello", payload: {} });
@@ -114,11 +119,11 @@ describe("createWebSocketTransport", () => {
     const transport = createWebSocketTransport({ url: "ws://localhost:3210" });
 
     const startPromise = transport.start();
-    mockWs.simulateOpen();
+    wsRef.current.simulateOpen();
     await startPromise;
 
     transport.onConnectionClose!(onClose);
-    mockWs.simulateClose();
+    wsRef.current.simulateClose();
 
     expect(onClose).toHaveBeenCalledWith("agent");
   });

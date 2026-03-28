@@ -5,20 +5,6 @@ import { AgentGameState } from "../state.js";
 import { createToolHandlers } from "../mcp.js";
 import type { Shape } from "../state.js";
 
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const waitFor = async (
-  assertion: () => void,
-  timeoutMs = 2000,
-  pollMs = 10
-) => {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try { assertion(); return; }
-    catch { await wait(pollMs); }
-  }
-  assertion();
-};
-
 describe("Agent E2E", () => {
   let server: AgentWebSocketServer | null = null;
 
@@ -36,7 +22,7 @@ describe("Agent E2E", () => {
     const remoteShapes: Record<string, Shape[]> = {};
     const handlers = createToolHandlers({
       state,
-      server: server as any,
+      server: server as unknown as AgentWebSocketServer,
       visibility: "full",
       remoteShapes,
       remoteCardState: null,

@@ -31,7 +31,7 @@ export function createToolHandlers(ctx: ToolContext) {
   const { state } = ctx;
 
   return {
-    async getGameState(_args: Record<string, unknown>): Promise<ToolResult> {
+    async getGameState(_: Record<string, unknown>): Promise<ToolResult> {
       const raw = {
         agentHand: state.getHand(),
         agentDeck: state.getDeckContents(),
@@ -48,11 +48,11 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok(filtered);
     },
 
-    async getHand(_args: Record<string, unknown>): Promise<ToolResult> {
+    async getHand(_: Record<string, unknown>): Promise<ToolResult> {
       return ok(state.getHand());
     },
 
-    async getBoardState(_args: Record<string, unknown>): Promise<ToolResult> {
+    async getBoardState(_: Record<string, unknown>): Promise<ToolResult> {
       const board: Record<string, Shape[]> = {
         agent: state.getAgentShapes(),
         ...ctx.remoteShapes,
@@ -60,7 +60,7 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok(board);
     },
 
-    async getDeckInfo(_args: Record<string, unknown>): Promise<ToolResult> {
+    async getDeckInfo(_: Record<string, unknown>): Promise<ToolResult> {
       const info: { size: number; contents?: { id: string; src: string[] }[] } = {
         size: state.getDeckSize(),
       };
@@ -70,7 +70,7 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok(info);
     },
 
-    async drawCard(_args: Record<string, unknown>): Promise<ToolResult> {
+    async drawCard(_: Record<string, unknown>): Promise<ToolResult> {
       const card = state.drawCard();
       if (!card) {
         return err("Deck is empty — cannot draw a card.");
@@ -78,7 +78,7 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok(card);
     },
 
-    async mulligan(_args: Record<string, unknown>): Promise<ToolResult> {
+    async mulligan(_: Record<string, unknown>): Promise<ToolResult> {
       state.mulligan();
       return ok({ message: "Hand shuffled back into deck.", deckSize: state.getDeckSize() });
     },
@@ -124,7 +124,7 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok({ shapeId, rotation: newRotation });
     },
 
-    async untapAll(_args: Record<string, unknown>): Promise<ToolResult> {
+    async untapAll(_: Record<string, unknown>): Promise<ToolResult> {
       const tapped = state.getAgentShapes().filter((s) => s.rotation && s.rotation !== 0);
       for (const shape of tapped) {
         state.updateAgentShape(shape.id, { rotation: 0 });
@@ -157,7 +157,7 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok({ message: `Card sent to ${position} of deck.`, deckSize: state.getDeckSize() });
     },
 
-    async shuffleDeck(_args: Record<string, unknown>): Promise<ToolResult> {
+    async shuffleDeck(_: Record<string, unknown>): Promise<ToolResult> {
       state.shuffleDeck();
       return ok({ message: "Deck shuffled.", deckSize: state.getDeckSize() });
     },

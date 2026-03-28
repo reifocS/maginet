@@ -71,11 +71,11 @@ export function createWebSocketTransport(
       }
     },
 
-    connect: async (_peerId: SyncPeerId) => {
+    connect: async () => {
       // No-op: the WebSocket connection is established in start()
     },
 
-    disconnect: (_peerId?: SyncPeerId) => {
+    disconnect: () => {
       if (ws) {
         ws.close();
         ws = null;
