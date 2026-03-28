@@ -102,17 +102,15 @@ export function usePeerSync(options: UsePeerSyncOptions) {
 
     addActionLogEntry(entry);
 
-    if (peer?.id) {
-      sendMessage({
-        type: "random-event",
-        payload: {
-          ...event,
-          peerId: peer.id,
-          playerName: localPlayerName,
-          timestamp: entry.timestamp,
-        },
-      });
-    }
+    sendMessage({
+      type: "random-event",
+      payload: {
+        ...event,
+        peerId: peer?.id ?? "local",
+        playerName: localPlayerName,
+        timestamp: entry.timestamp,
+      },
+    });
   };
 
   const rollCoin = () => {
@@ -165,9 +163,7 @@ export function usePeerSync(options: UsePeerSyncOptions) {
 
     addActionLogEntry(entry);
 
-    if (peer?.id) {
-      sendMessage({ type: "action-log", payload: entry });
-    }
+    sendMessage({ type: "action-log", payload: entry });
     sendMessage({ type: "card-state-sync", payload: { cards: cards.length, deck: options.deck.length } });
   }, [cardState.actionId, cardState.lastAction, cardState.lastPlayedSrcs, cards.length, options.deck.length, peer?.id, sendMessage]);
 
