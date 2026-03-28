@@ -8,6 +8,7 @@ export interface ActionLogEntry {
   playerId?: string;
   playerName?: string;
   cardsInHand?: number;
+  cardNames?: string[];
 }
 
 export interface ToolContext {
@@ -259,6 +260,34 @@ export function createToolHandlers(ctx: ToolContext) {
       return ok({ shapeId, text });
     },
 
+    async moveShape(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const position = args.position as [number, number];
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) return err(`Shape "${shapeId}" not found.`);
+      state.updateAgentShape(shapeId, { point: position });
+      return ok({ shapeId, point: position });
+    },
+
+    async placeRect(args: Record<string, unknown>): Promise<ToolResult> {
+      const position = args.position as [number, number] | undefined;
+      const size = args.size as [number, number] | undefined;
+      const color = (args.color as string | undefined) ?? "#555555";
+
+      const shape: Shape = {
+        id: generateId(),
+        point: position ?? [0, 0],
+        size: size ?? [200, 150],
+        type: "rectangle",
+        color,
+        srcIndex: 0,
+        rotation: 0,
+        isFlipped: false,
+      };
+      state.addAgentShape(shape);
+      return ok({ message: "Rectangle placed.", shape });
+    },
+
     async getActionLog(args: Record<string, unknown>): Promise<ToolResult> {
       const limit = (args.limit as number | undefined) ?? 20;
       const entries = ctx.actionLog.slice(-limit);
@@ -397,6 +426,30 @@ export const TOOL_DEFINITIONS = [
         label: { type: "string" },
       },
       required: ["shapeId", "label"],
+    },
+  },
+  {
+    name: "moveShape",
+    description: "Move a shape to a new position on the board.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shapeId: { type: "string" },
+        position: { type: "array", items: { type: "number" } },
+      },
+      required: ["shapeId", "position"],
+    },
+  },
+  {
+    name: "placeRect",
+    description: "Place a rectangle on the board (e.g. for zones like graveyard, exile).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        position: { type: "array", items: { type: "number" } },
+        size: { type: "array", items: { type: "number" } },
+        color: { type: "string" },
+      },
     },
   },
   {

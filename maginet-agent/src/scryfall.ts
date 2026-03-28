@@ -100,6 +100,36 @@ function scryfallCardToDeckCard(card: ScryfallCard): DeckCard {
   throw new Error(`No image found for card: ${card.name}`);
 }
 
+/** Extract Scryfall card UUID from an image URL like https://cards.scryfall.io/normal/front/2/d/2dfe1926-...jpg */
+function extractScryfallUuid(imageUrl: string): string | null {
+  const match = imageUrl.match(/\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\./);
+  return match?.[1] ?? null;
+}
+
+/** Fetch card metadata from Scryfall by image URL. Returns null if lookup fails. */
+export async function fetchCardMetaByImageUrl(imageUrl: string): Promise<{ imageUrl: string; meta: CardMeta } | null> {
+  const uuid = extractScryfallUuid(imageUrl);
+  if (!uuid) return null;
+  try {
+    const response = await fetch(`https://api.scryfall.com/cards/${uuid}`);
+    if (!response.ok) return null;
+    const card = await response.json() as ScryfallCard;
+    return {
+      imageUrl,
+      meta: {
+        name: card.name,
+        typeLine: card.type_line,
+        oracleText: card.oracle_text ?? (card.card_faces as unknown as ScryfallCard[])?.[0]?.oracle_text,
+        manaCost: card.mana_cost ?? (card.card_faces as unknown as ScryfallCard[])?.[0]?.mana_cost,
+        power: card.power,
+        toughness: card.toughness,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadDeckFromList(deckList: string): Promise<DeckCard[]> {
   const names = parseDeckList(deckList);
   if (names.length === 0) throw new Error("Empty deck list");

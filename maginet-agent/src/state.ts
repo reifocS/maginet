@@ -69,6 +69,10 @@ export class AgentGameState {
     return this.cardMetaByImage.get(shape.src[0]);
   }
 
+  registerCardMeta(imageUrl: string, meta: CardMeta): void {
+    this.cardMetaByImage.set(imageUrl, meta);
+  }
+
   getHand(): Card[] {
     return this.cardState.cards;
   }
