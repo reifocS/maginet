@@ -16,7 +16,7 @@ export interface ToolContext {
   server: AgentWebSocketServer;
   visibility: Visibility;
   remoteShapes: Record<string, Shape[]>;
-  remoteCardState: { cards: number; deck: number } | null;
+  remoteCardState: { cards: number; deck: number; hand: Array<{ id: string; src: string[] }> } | null;
   actionLog: ActionLogEntry[];
 }
 
@@ -34,7 +34,7 @@ function err(message: string): ToolResult {
 }
 
 function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
+  return Math.random().toString(36).slice(2, 11);
 }
 
 export function createToolHandlers(ctx: ToolContext) {
@@ -49,9 +49,11 @@ export function createToolHandlers(ctx: ToolContext) {
           agent: state.getAgentShapes(),
           ...ctx.remoteShapes,
         },
-        opponentHand: ctx.remoteCardState
-          ? ([] as { id: string; src: string[] }[])
-          : [],
+        opponentHand: (ctx.remoteCardState?.hand ?? []).map((c) => {
+          const meta = state.lookupCardMeta(c.src[0]);
+          return { ...c, name: meta?.name, typeLine: meta?.typeLine, oracleText: meta?.oracleText, manaCost: meta?.manaCost, power: meta?.power, toughness: meta?.toughness };
+        }),
+        opponentHandCount: ctx.remoteCardState?.cards ?? 0,
         opponentDeckSize: ctx.remoteCardState?.deck ?? 0,
       };
       const filtered = filterGameState(raw, ctx.visibility);

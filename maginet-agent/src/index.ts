@@ -33,11 +33,11 @@ async function main() {
   const gameState = new AgentGameState();
   const wsServer = new AgentWebSocketServer({ port });
   const remoteShapes: Record<string, Shape[]> = {};
-  let remoteCardState: { cards: number; deck: number } | null = null;
+  let remoteCardState: { cards: number; deck: number; hand: Array<{ id: string; src: string[] }> } | null = null;
   const MAX_ACTION_LOG = 200;
   const actionLog: Array<{ timestamp: number; action: string; playerId?: string; playerName?: string; cardsInHand?: number; cardNames?: string[] }> = [];
   const pushActionLog = (entry: (typeof actionLog)[number]) => {
-    pushActionLog(entry);
+    actionLog.push(entry);
     if (actionLog.length > MAX_ACTION_LOG) actionLog.splice(0, actionLog.length - MAX_ACTION_LOG);
   };
 
@@ -173,8 +173,8 @@ async function main() {
     }
 
     if (message.type === "card-state-sync") {
-      const payload = message.payload as { cards: number; deck: number };
-      remoteCardState = payload;
+      const payload = message.payload as { cards: number; deck: number; hand?: Array<{ id: string; src: string[] }> };
+      remoteCardState = { cards: payload.cards, deck: payload.deck, hand: payload.hand ?? [] };
     }
   });
 

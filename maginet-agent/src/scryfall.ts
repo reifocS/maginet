@@ -41,7 +41,7 @@ export interface DeckCard {
 }
 
 function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
+  return Math.random().toString(36).slice(2, 11);
 }
 
 function shuffle<T>(array: T[]): T[] {
