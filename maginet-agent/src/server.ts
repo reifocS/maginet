@@ -30,7 +30,7 @@ export class AgentWebSocketServer {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: this.port }, () => {
         const address = this.wss!.address();
-        const assignedPort = typeof address === "object" ? address.port : this.port;
+        const assignedPort = address !== null && typeof address === "object" ? address.port : this.port;
         resolve(assignedPort);
       });
 
