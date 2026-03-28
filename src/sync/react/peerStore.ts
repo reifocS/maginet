@@ -177,6 +177,11 @@ export const usePeerStore = create<PeerState>((_, get) => ({
 
   sendMessage: (message: Message, peerId?: string) => {
     syncClient.send(message, peerId);
+    // Forward to agent sync client so custom messages (action-log,
+    // heartbeat, etc.) reach the agent without manual sendAgentMessage calls
+    if (agentSyncClient) {
+      agentSyncClient.send(message, peerId);
+    }
   },
 
   disconnect: (peerId?: string) => {
@@ -267,8 +272,3 @@ export const isAgentConnected = (): boolean => {
   return agentTransport !== null && agentSyncClient !== null;
 };
 
-export const sendAgentMessage = (message: Message): void => {
-  if (agentSyncClient) {
-    agentSyncClient.send(message);
-  }
-};
