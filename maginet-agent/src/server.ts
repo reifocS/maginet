@@ -34,7 +34,11 @@ export class AgentWebSocketServer {
         resolve(assignedPort);
       });
 
-      this.wss.on("error", reject);
+      this.wss.on("error", (err) => {
+        // Reject during startup; log after startup
+        reject(err);
+        console.error("[maginet-agent] WebSocket server error:", err);
+      });
 
       this.wss.on("connection", (ws) => {
         // Close previous client if browser reconnects (e.g. page refresh)

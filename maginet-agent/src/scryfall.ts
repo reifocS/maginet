@@ -45,10 +45,12 @@ function generateId(): string {
 }
 
 function shuffle<T>(array: T[]): T[] {
-  return array
-    .map((value) => ({ value, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ value }) => value);
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 
 export function parseDeckList(deckList: string): string[] {
@@ -91,11 +93,14 @@ function scryfallCardToDeckCard(card: ScryfallCard): DeckCard {
     return { id: generateId(), src: [card.image_uris.normal], meta };
   }
   if (card.card_faces?.length) {
-    return {
-      id: generateId(),
-      src: card.card_faces.map((face) => face.image_uris.normal),
-      meta,
-    };
+    const facesWithImages = card.card_faces.filter((face) => face.image_uris?.normal);
+    if (facesWithImages.length > 0) {
+      return {
+        id: generateId(),
+        src: facesWithImages.map((face) => face.image_uris.normal),
+        meta,
+      };
+    }
   }
   throw new Error(`No image found for card: ${card.name}`);
 }
@@ -135,8 +140,16 @@ export async function loadDeckFromList(deckList: string): Promise<DeckCard[]> {
   if (names.length === 0) throw new Error("Empty deck list");
   if (names.length > 200) throw new Error("Deck list too large (max 200 cards)");
 
+  // Count how many copies of each card are needed
+  const countMap = new Map<string, number>();
+  for (const name of names) {
+    countMap.set(name, (countMap.get(name) ?? 0) + 1);
+  }
+
+  // Send only unique names to Scryfall (it deduplicates anyway)
+  const uniqueNames = [...countMap.keys()];
   const chunks: string[][] = [];
-  const remaining = [...names];
+  const remaining = [...uniqueNames];
   while (remaining.length > 0) {
     chunks.push(remaining.splice(0, 75));
   }
@@ -148,6 +161,12 @@ export async function loadDeckFromList(deckList: string): Promise<DeckCard[]> {
     console.warn(`Cards not found: ${notFound.join(", ")}`);
   }
 
-  const cards = collections.flatMap((c) => c.data.map(scryfallCardToDeckCard));
+  // Expand each Scryfall result back to the requested number of copies
+  const cards = collections.flatMap((c) =>
+    c.data.flatMap((scryfallCard) => {
+      const count = countMap.get(scryfallCard.name) ?? 1;
+      return Array.from({ length: count }, () => scryfallCardToDeckCard(scryfallCard));
+    })
+  );
   return shuffle(cards);
 }

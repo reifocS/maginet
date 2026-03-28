@@ -4,7 +4,7 @@ import { z } from "zod";
 import { AgentWebSocketServer } from "./server.js";
 import { AgentGameState, type Shape } from "./state.js";
 import { createToolHandlers, TOOL_DEFINITIONS } from "./mcp.js";
-import { loadDeckFromList } from "./scryfall.js";
+import { loadDeckFromList, fetchCardMetaByImageUrl } from "./scryfall.js";
 import type { Visibility } from "./visibility.js";
 
 function parseArgs(argv: string[]): { port: number; visibility: Visibility } {
@@ -16,7 +16,11 @@ function parseArgs(argv: string[]): { port: number; visibility: Visibility } {
       port = parseInt(argv[i + 1], 10);
     }
     if (argv[i] === "--visibility" && argv[i + 1]) {
-      visibility = argv[i + 1] as Visibility;
+      const v = argv[i + 1];
+      if (v !== "fair" && v !== "full") {
+        throw new Error(`--visibility must be "fair" or "full", got "${v}"`);
+      }
+      visibility = v;
     }
   }
 
@@ -30,7 +34,12 @@ async function main() {
   const wsServer = new AgentWebSocketServer({ port });
   const remoteShapes: Record<string, Shape[]> = {};
   let remoteCardState: { cards: number; deck: number } | null = null;
-  const actionLog: Array<{ timestamp: number; action: string; playerId?: string; playerName?: string; cardsInHand?: number }> = [];
+  const MAX_ACTION_LOG = 200;
+  const actionLog: Array<{ timestamp: number; action: string; playerId?: string; playerName?: string; cardsInHand?: number; cardNames?: string[] }> = [];
+  const pushActionLog = (entry: (typeof actionLog)[number]) => {
+    pushActionLog(entry);
+    if (actionLog.length > MAX_ACTION_LOG) actionLog.splice(0, actionLog.length - MAX_ACTION_LOG);
+  };
 
   const assignedPort = await wsServer.start();
   console.error(`[maginet-agent] WebSocket server listening on port ${assignedPort}`);
@@ -79,6 +88,24 @@ async function main() {
     });
   });
 
+  // Auto-fetch Scryfall metadata for unknown card images
+  const pendingLookups = new Set<string>();
+  const resolveUnknownCards = (shapes: Shape[]) => {
+    for (const shape of shapes) {
+      if (shape.type !== "image" || !shape.src?.length) continue;
+      const url = shape.src[0];
+      if (gameState.lookupCardMeta(url) || pendingLookups.has(url)) continue;
+      pendingLookups.add(url);
+      fetchCardMetaByImageUrl(url).then((result) => {
+        pendingLookups.delete(url);
+        if (result) {
+          gameState.registerCardMeta(result.imageUrl, result.meta);
+          console.error(`[maginet-agent] Resolved: ${result.meta.name}`);
+        }
+      }).catch(() => { pendingLookups.delete(url); });
+    }
+  };
+
   // Listen for sync messages from the browser
   wsServer.onMessage((message) => {
     if (message.type === "sync:channel-snapshot") {
@@ -88,6 +115,7 @@ async function main() {
         for (const [peerId, shapes] of Object.entries(snapshot)) {
           if (Array.isArray(shapes)) {
             remoteShapes[peerId] = shapes as Shape[];
+            resolveUnknownCards(shapes as Shape[]);
           }
         }
       }
@@ -103,28 +131,37 @@ async function main() {
           if (patch.upserts) {
             for (const shape of patch.upserts) byId.set(shape.id, shape);
           }
-          remoteShapes[peerId] = Array.from(byId.values());
+          const updated = Array.from(byId.values());
+          remoteShapes[peerId] = updated;
+          resolveUnknownCards(updated);
         }
       }
     }
 
     if (message.type === "action-log") {
-      const payload = message.payload as { action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number };
-      actionLog.push({
+      const payload = message.payload as { action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number; cardSrcs?: string[][] };
+      // Resolve card names from image URLs
+      const cardNames = payload.cardSrcs?.map((srcs) => {
+        const meta = gameState.lookupCardMeta(srcs[0]);
+        return meta?.name ?? srcs[0];
+      });
+      pushActionLog({
         timestamp: payload.timestamp ?? Date.now(),
         action: payload.action ?? "unknown",
         playerId: payload.playerId,
         playerName: payload.playerName,
         cardsInHand: payload.cardsInHand,
+        cardNames,
       });
-      console.error(`[maginet-agent] Action: ${payload.playerName ?? payload.playerId}: ${payload.action}`);
+      const nameStr = cardNames?.length ? ` (${cardNames.join(", ")})` : "";
+      console.error(`[maginet-agent] Action: ${payload.playerName ?? payload.playerId}: ${payload.action}${nameStr}`);
     }
 
     if (message.type === "action-log-snapshot") {
       const payload = message.payload as { entries?: Array<{ action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number }> };
       if (payload.entries) {
         for (const entry of payload.entries) {
-          actionLog.push({
+          pushActionLog({
             timestamp: entry.timestamp ?? Date.now(),
             action: entry.action ?? "unknown",
             playerId: entry.playerId,
@@ -193,6 +230,8 @@ async function main() {
           cardState?: { deck?: { id: string; src: string[] }[]; cards?: { id: string; src: string[] }[] };
           shapes?: Shape[];
         };
+        // Clear existing state before loading snapshot
+        gameState.clearAgentShapes();
         if (snap.cardState) {
           gameState.initializeDeck(snap.cardState.deck ?? []);
           if (snap.cardState.cards) {

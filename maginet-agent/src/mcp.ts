@@ -151,9 +151,8 @@ export function createToolHandlers(ctx: ToolContext) {
 
     async untapAll(_: Record<string, unknown>): Promise<ToolResult> {
       const tapped = state.getAgentShapes().filter((s) => s.rotation && s.rotation !== 0);
-      for (const shape of tapped) {
-        state.updateAgentShape(shape.id, { rotation: 0 });
-      }
+      const updates = new Map(tapped.map((s) => [s.id, { rotation: 0 }]));
+      state.updateAgentShapes(updates);
       return ok({ message: `Untapped ${tapped.length} card(s).` });
     },
 
@@ -164,9 +163,10 @@ export function createToolHandlers(ctx: ToolContext) {
         return err(`Shape "${shapeId}" not found.`);
       }
       state.removeAgentShape(shapeId);
-      const card = { id: generateId(), src: shape.src ?? [] };
+      const meta = state.lookupShapeMeta(shape);
+      const card = { id: generateId(), src: shape.src ?? [], ...(meta ? { meta } : {}) };
       state.sendToHand([card]);
-      return ok({ message: "Card returned to hand.", card });
+      return ok({ message: "Card returned to hand.", card: { ...card, name: meta?.name } });
     },
 
     async sendToDeck(args: Record<string, unknown>): Promise<ToolResult> {
@@ -177,9 +177,21 @@ export function createToolHandlers(ctx: ToolContext) {
         return err(`Shape "${shapeId}" not found.`);
       }
       state.removeAgentShape(shapeId);
-      const card = { id: generateId(), src: shape.src ?? [] };
+      const meta = state.lookupShapeMeta(shape);
+      const card = { id: generateId(), src: shape.src ?? [], ...(meta ? { meta } : {}) };
       state.sendToDeck([card], position);
       return ok({ message: `Card sent to ${position} of deck.`, deckSize: state.getDeckSize() });
+    },
+
+    async removeShape(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      state.removeAgentShape(shapeId);
+      const meta = state.lookupShapeMeta(shape);
+      return ok({ message: "Shape removed.", shapeId, cardName: meta?.name });
     },
 
     async shuffleDeck(_: Record<string, unknown>): Promise<ToolResult> {
@@ -286,6 +298,18 @@ export function createToolHandlers(ctx: ToolContext) {
       };
       state.addAgentShape(shape);
       return ok({ message: "Rectangle placed.", shape });
+    },
+
+    async undo(_: Record<string, unknown>): Promise<ToolResult> {
+      const success = state.undo();
+      if (!success) return err("Nothing to undo.");
+      return ok({ message: "Undone." });
+    },
+
+    async redo(_: Record<string, unknown>): Promise<ToolResult> {
+      const success = state.redo();
+      if (!success) return err("Nothing to redo.");
+      return ok({ message: "Redone." });
     },
 
     async getActionLog(args: Record<string, unknown>): Promise<ToolResult> {
@@ -427,6 +451,25 @@ export const TOOL_DEFINITIONS = [
       },
       required: ["shapeId", "label"],
     },
+  },
+  {
+    name: "removeShape",
+    description: "Remove a shape from the board (e.g. destroy a token, remove resolved spell).",
+    inputSchema: {
+      type: "object",
+      properties: { shapeId: { type: "string" } },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "undo",
+    description: "Undo the last game action (draw, play, shape change, etc).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "redo",
+    description: "Redo a previously undone action.",
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "moveShape",

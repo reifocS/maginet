@@ -48,17 +48,67 @@ function generateId(): string {
 }
 
 function shuffle<T>(array: T[]): T[] {
-  return array
-    .map((value) => ({ value, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ value }) => value);
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
+
+interface Snapshot {
+  cardState: CardState;
+  agentShapes: Shape[];
+}
+
+const MAX_UNDO_HISTORY = 30;
 
 export class AgentGameState {
   private cardState: CardState = { cards: [], deck: [], actionId: 0 };
   private agentShapes: Shape[] = [];
   private shapeListeners = new Set<(next: Shape[], prev: Shape[]) => void>();
   private cardMetaByImage = new Map<string, CardMeta>();
+  private undoStack: Snapshot[] = [];
+  private redoStack: Snapshot[] = [];
+
+  private saveSnapshot(): void {
+    this.undoStack.push({
+      cardState: { ...this.cardState, cards: [...this.cardState.cards], deck: [...this.cardState.deck] },
+      agentShapes: this.agentShapes.map((s) => ({ ...s })),
+    });
+    if (this.undoStack.length > MAX_UNDO_HISTORY) {
+      this.undoStack.shift();
+    }
+    this.redoStack = [];
+  }
+
+  undo(): boolean {
+    const snapshot = this.undoStack.pop();
+    if (!snapshot) return false;
+    this.redoStack.push({
+      cardState: { ...this.cardState, cards: [...this.cardState.cards], deck: [...this.cardState.deck] },
+      agentShapes: this.agentShapes.map((s) => ({ ...s })),
+    });
+    const prev = this.agentShapes;
+    this.cardState = snapshot.cardState;
+    this.agentShapes = snapshot.agentShapes;
+    this.notifyShapeChange(prev);
+    return true;
+  }
+
+  redo(): boolean {
+    const snapshot = this.redoStack.pop();
+    if (!snapshot) return false;
+    this.undoStack.push({
+      cardState: { ...this.cardState, cards: [...this.cardState.cards], deck: [...this.cardState.deck] },
+      agentShapes: this.agentShapes.map((s) => ({ ...s })),
+    });
+    const prev = this.agentShapes;
+    this.cardState = snapshot.cardState;
+    this.agentShapes = snapshot.agentShapes;
+    this.notifyShapeChange(prev);
+    return true;
+  }
 
   lookupCardMeta(imageUrl: string): CardMeta | undefined {
     return this.cardMetaByImage.get(imageUrl);
@@ -129,6 +179,7 @@ export class AgentGameState {
 
   drawCard(): Card | null {
     if (this.cardState.deck.length === 0) return null;
+    this.saveSnapshot();
     this.nextAction("DRAW_CARD");
     const [drawn, ...rest] = this.cardState.deck;
     const drawnCard = { ...drawn, id: generateId() };
@@ -141,6 +192,7 @@ export class AgentGameState {
   }
 
   mulligan(): void {
+    this.saveSnapshot();
     this.nextAction("MULLIGAN");
     this.cardState = {
       ...this.cardState,
@@ -152,6 +204,7 @@ export class AgentGameState {
   playCard(cardId: string): Card | null {
     const card = this.cardState.cards.find((c) => c.id === cardId);
     if (!card) return null;
+    this.saveSnapshot();
     this.nextAction("PLAY_CARD");
     this.cardState = {
       ...this.cardState,
@@ -188,12 +241,14 @@ export class AgentGameState {
   }
 
   addAgentShape(shape: Shape): void {
+    this.saveSnapshot();
     const prev = this.agentShapes;
     this.agentShapes = [...this.agentShapes, shape];
     this.notifyShapeChange(prev);
   }
 
   removeAgentShape(shapeId: string): void {
+    this.saveSnapshot();
     const prev = this.agentShapes;
     this.agentShapes = this.agentShapes.filter((s) => s.id !== shapeId);
     this.notifyShapeChange(prev);
@@ -204,6 +259,22 @@ export class AgentGameState {
     this.agentShapes = this.agentShapes.map((s) =>
       s.id === shapeId ? { ...s, ...updates } : s
     );
+    this.notifyShapeChange(prev);
+  }
+
+  /** Batch-update multiple shapes, notifying listeners only once. */
+  updateAgentShapes(updatesById: Map<string, Partial<Shape>>): void {
+    const prev = this.agentShapes;
+    this.agentShapes = this.agentShapes.map((s) => {
+      const updates = updatesById.get(s.id);
+      return updates ? { ...s, ...updates } : s;
+    });
+    this.notifyShapeChange(prev);
+  }
+
+  clearAgentShapes(): void {
+    const prev = this.agentShapes;
+    this.agentShapes = [];
     this.notifyShapeChange(prev);
   }
 
