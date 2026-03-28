@@ -1,0 +1,355 @@
+import type { AgentGameState, Shape, Counter } from "./state.js";
+import type { AgentWebSocketServer } from "./server.js";
+import { type Visibility, filterGameState } from "./visibility.js";
+
+export interface ToolContext {
+  state: AgentGameState;
+  server: AgentWebSocketServer;
+  visibility: Visibility;
+  remoteShapes: Record<string, Shape[]>;
+  remoteCardState: { cards: number; deck: number } | null;
+}
+
+type ToolResult = {
+  content: Array<{ type: "text"; text: string }>;
+  isError?: boolean;
+};
+
+function ok(data: unknown): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+
+function err(message: string): ToolResult {
+  return { content: [{ type: "text", text: message }], isError: true };
+}
+
+function generateId(): string {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+export function createToolHandlers(ctx: ToolContext) {
+  const { state } = ctx;
+
+  return {
+    async getGameState(_args: Record<string, unknown>): Promise<ToolResult> {
+      const raw = {
+        agentHand: state.getHand(),
+        agentDeck: state.getDeckContents(),
+        boardShapes: {
+          agent: state.getAgentShapes(),
+          ...ctx.remoteShapes,
+        },
+        opponentHand: ctx.remoteCardState
+          ? ([] as { id: string; src: string[] }[])
+          : [],
+        opponentDeckSize: ctx.remoteCardState?.deck ?? 0,
+      };
+      const filtered = filterGameState(raw, ctx.visibility);
+      return ok(filtered);
+    },
+
+    async getHand(_args: Record<string, unknown>): Promise<ToolResult> {
+      return ok(state.getHand());
+    },
+
+    async getBoardState(_args: Record<string, unknown>): Promise<ToolResult> {
+      const board: Record<string, Shape[]> = {
+        agent: state.getAgentShapes(),
+        ...ctx.remoteShapes,
+      };
+      return ok(board);
+    },
+
+    async getDeckInfo(_args: Record<string, unknown>): Promise<ToolResult> {
+      const info: { size: number; contents?: { id: string; src: string[] }[] } = {
+        size: state.getDeckSize(),
+      };
+      if (ctx.visibility === "full") {
+        info.contents = state.getDeckContents();
+      }
+      return ok(info);
+    },
+
+    async drawCard(_args: Record<string, unknown>): Promise<ToolResult> {
+      const card = state.drawCard();
+      if (!card) {
+        return err("Deck is empty — cannot draw a card.");
+      }
+      return ok(card);
+    },
+
+    async mulligan(_args: Record<string, unknown>): Promise<ToolResult> {
+      state.mulligan();
+      return ok({ message: "Hand shuffled back into deck.", deckSize: state.getDeckSize() });
+    },
+
+    async playCard(args: Record<string, unknown>): Promise<ToolResult> {
+      const cardId = args.cardId as string;
+      const position = args.position as [number, number] | undefined;
+      const faceDown = (args.faceDown as boolean | undefined) ?? false;
+
+      const card = state.playCard(cardId);
+      if (!card) {
+        return err(`Card "${cardId}" not found in hand.`);
+      }
+
+      const point = position ?? [
+        Math.floor(Math.random() * 400),
+        Math.floor(Math.random() * 400),
+      ];
+
+      const shape: Shape = {
+        id: generateId(),
+        point,
+        size: [100, 100],
+        type: "image",
+        src: card.src,
+        srcIndex: 0,
+        rotation: 0,
+        isFlipped: faceDown,
+      };
+
+      state.addAgentShape(shape);
+      return ok({ message: "Card played.", shape });
+    },
+
+    async tapCard(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      const newRotation = (shape.rotation ?? 0) === 0 ? 90 : 0;
+      state.updateAgentShape(shapeId, { rotation: newRotation });
+      return ok({ shapeId, rotation: newRotation });
+    },
+
+    async untapAll(_args: Record<string, unknown>): Promise<ToolResult> {
+      const tapped = state.getAgentShapes().filter((s) => s.rotation && s.rotation !== 0);
+      for (const shape of tapped) {
+        state.updateAgentShape(shape.id, { rotation: 0 });
+      }
+      return ok({ message: `Untapped ${tapped.length} card(s).` });
+    },
+
+    async sendToHand(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      state.removeAgentShape(shapeId);
+      const card = { id: generateId(), src: shape.src ?? [] };
+      state.sendToHand([card]);
+      return ok({ message: "Card returned to hand.", card });
+    },
+
+    async sendToDeck(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const position = (args.position as "top" | "bottom") ?? "bottom";
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      state.removeAgentShape(shapeId);
+      const card = { id: generateId(), src: shape.src ?? [] };
+      state.sendToDeck([card], position);
+      return ok({ message: `Card sent to ${position} of deck.`, deckSize: state.getDeckSize() });
+    },
+
+    async shuffleDeck(_args: Record<string, unknown>): Promise<ToolResult> {
+      state.shuffleDeck();
+      return ok({ message: "Deck shuffled.", deckSize: state.getDeckSize() });
+    },
+
+    async addCounter(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const counter = args.counter as Counter;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      const existing = shape.counters ?? [];
+      const updated = existing.some((c) => c.label === counter.label)
+        ? existing.map((c) => (c.label === counter.label ? { ...c, ...counter } : c))
+        : [...existing, counter];
+      state.updateAgentShape(shapeId, { counters: updated });
+      return ok({ shapeId, counters: updated });
+    },
+
+    async removeCounter(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const label = args.label as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      const updated = (shape.counters ?? []).filter((c) => c.label !== label);
+      state.updateAgentShape(shapeId, { counters: updated });
+      return ok({ shapeId, counters: updated });
+    },
+
+    async flipCard(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      const newFlipped = !shape.isFlipped;
+      state.updateAgentShape(shapeId, { isFlipped: newFlipped });
+      return ok({ shapeId, isFlipped: newFlipped });
+    },
+
+    async transformCard(args: Record<string, unknown>): Promise<ToolResult> {
+      const shapeId = args.shapeId as string;
+      const shape = state.findAgentShape(shapeId);
+      if (!shape) {
+        return err(`Shape "${shapeId}" not found.`);
+      }
+      const srcLength = shape.src?.length ?? 1;
+      const newIndex = ((shape.srcIndex ?? 0) + 1) % srcLength;
+      state.updateAgentShape(shapeId, { srcIndex: newIndex });
+      return ok({ shapeId, srcIndex: newIndex });
+    },
+  };
+}
+
+export const TOOL_DEFINITIONS = [
+  {
+    name: "getGameState",
+    description:
+      "Get a full snapshot of the current game: your hand, deck size, board shapes, and opponent info.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "getHand",
+    description: "Get the cards currently in your hand.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "getBoardState",
+    description: "Get all shapes on the board, grouped by player.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "getDeckInfo",
+    description:
+      "Get deck size. In full visibility mode, also returns deck contents.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "drawCard",
+    description: "Draw the top card from your deck into your hand.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "mulligan",
+    description: "Shuffle your entire hand back into your deck.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "playCard",
+    description: "Play a card from your hand onto the board.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cardId: { type: "string" },
+        position: { type: "array", items: { type: "number" } },
+        faceDown: { type: "boolean" },
+      },
+      required: ["cardId"],
+    },
+  },
+  {
+    name: "tapCard",
+    description: "Toggle tap/untap on a card.",
+    inputSchema: {
+      type: "object",
+      properties: { shapeId: { type: "string" } },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "untapAll",
+    description: "Untap all your cards on the board.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "sendToHand",
+    description: "Return a card from the board back to your hand.",
+    inputSchema: {
+      type: "object",
+      properties: { shapeId: { type: "string" } },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "sendToDeck",
+    description: "Return a card from the board to your deck.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shapeId: { type: "string" },
+        position: { type: "string", enum: ["top", "bottom"] },
+      },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "shuffleDeck",
+    description: "Shuffle your deck.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "addCounter",
+    description: "Add or update a counter on a card.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shapeId: { type: "string" },
+        counter: {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+            power: { type: "number" },
+            toughness: { type: "number" },
+            value: { type: "number" },
+            color: { type: "string" },
+          },
+          required: ["label"],
+        },
+      },
+      required: ["shapeId", "counter"],
+    },
+  },
+  {
+    name: "removeCounter",
+    description: "Remove a counter from a card by its label.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shapeId: { type: "string" },
+        label: { type: "string" },
+      },
+      required: ["shapeId", "label"],
+    },
+  },
+  {
+    name: "flipCard",
+    description: "Toggle a card between face-up and face-down.",
+    inputSchema: {
+      type: "object",
+      properties: { shapeId: { type: "string" } },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "transformCard",
+    description: "Switch a double-faced card to its other face.",
+    inputSchema: {
+      type: "object",
+      properties: { shapeId: { type: "string" } },
+      required: ["shapeId"],
+    },
+  },
+];
