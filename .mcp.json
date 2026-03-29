@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "maginet": {
+      "command": "bash",
+      "args": ["-c", "cd maginet-agent && node dist/index.js --visibility full"]
+    }
+  }
+}

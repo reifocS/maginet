@@ -4,6 +4,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    watch: {
+      ignored: ["**/maginet-agent/**"],
+    },
+  },
   plugins: [
     tailwindcss(),
     react({
