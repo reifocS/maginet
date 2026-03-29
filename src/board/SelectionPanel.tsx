@@ -2,7 +2,6 @@ import React from "react";
 import { useLocation, Form } from "react-router-dom";
 import useModal from "../hooks/useModal";
 import { usePeerStore } from "../hooks/usePeerConnection";
-import { startRelay, stopRelay, isRelayActive } from "../sync/react/agentRelay";
 import { useShapeStore } from "../hooks/useShapeStore";
 import { Datum } from "../hooks/useCards";
 import { Camera, Mode, Card, ShapeType } from "../types/canvas";
@@ -449,26 +448,6 @@ export function SelectionPanel({
     );
   };
 
-  const [relayOn, setRelayOn] = React.useState(() => isRelayActive());
-  const [relayConnecting, setRelayConnecting] = React.useState(false);
-
-  const handleToggleRelay = async () => {
-    if (relayOn) {
-      stopRelay();
-      setRelayOn(false);
-      return;
-    }
-    setRelayConnecting(true);
-    try {
-      await startRelay();
-      setRelayOn(true);
-    } catch {
-      setRelayOn(false);
-    } finally {
-      setRelayConnecting(false);
-    }
-  };
-
   return (
     <div className="selection-panel selection-panel--integrated fixed inset-0 z-(--z-selection-panel) pointer-events-none text-win-text font-win p-0">
       <div className="selection-panel__group selection-panel__group--top-left absolute flex items-center gap-2.5 pointer-events-auto top-4 left-4 max-[720px]:top-3 max-[720px]:left-3 max-[720px]:flex-col max-[720px]:items-start">
@@ -505,13 +484,6 @@ export function SelectionPanel({
         </button>
         <button className="selection-panel__pill" onClick={openConnectModal}>
           Connect
-        </button>
-        <button
-          className={`selection-panel__pill${relayOn ? " is-active" : ""}`}
-          onClick={handleToggleRelay}
-          disabled={relayConnecting}
-        >
-          {relayConnecting ? "Connecting..." : relayOn ? "Relay On" : "Relay"}
         </button>
         {isMobile && (
           <button className="selection-panel__pill danger" onClick={onMulligan}>
