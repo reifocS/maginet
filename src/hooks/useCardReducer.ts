@@ -7,6 +7,7 @@ export type CardState = {
   cards: Card[];
   deck: Card[];
   lastAction?: string;
+  lastPlayedSrcs?: string[][];
   actionId?: number;
 };
 
@@ -95,11 +96,14 @@ export function cardReducer(state: CardState, action: CardAction): CardState {
         deck: nextDeck,
       };
     }
-    case "PLAY_CARD":
+    case "PLAY_CARD": {
+      const playedCards = state.cards.filter((card) => action.payload.includes(card.id));
       return {
         ...baseState,
+        lastPlayedSrcs: playedCards.map((c) => c.src),
         cards: state.cards.filter((card) => !action.payload.includes(card.id)),
       };
+    }
     case "SHUFFLE_DECK":
       return {
         ...baseState,
