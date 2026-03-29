@@ -63,7 +63,7 @@ async function main() {
   };
 
   // Create PeerJS-based agent peer
-  const agentPeer = createAgentPeer({
+  const agentPeer = await createAgentPeer({
     getLocalShapes: () => gameState.getAgentShapes(),
     subscribeLocalShapes: (cb) => gameState.subscribeShapes(cb),
     onRemoteShapes: (peerId, shapes) => {
