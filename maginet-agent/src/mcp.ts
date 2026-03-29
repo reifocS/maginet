@@ -1,6 +1,10 @@
 import type { AgentGameState, Shape, Counter, Card } from "./state.js";
-import type { AgentWebSocketServer } from "./server.js";
 import { type Visibility, filterGameState } from "./visibility.js";
+
+export interface AgentServer {
+  isConnected(): boolean;
+  send(message: { type: string; payload: unknown }, peerId?: string): void;
+}
 
 export interface ActionLogEntry {
   timestamp: number;
@@ -13,7 +17,7 @@ export interface ActionLogEntry {
 
 export interface ToolContext {
   state: AgentGameState;
-  server: AgentWebSocketServer;
+  server: AgentServer;
   visibility: Visibility;
   remoteShapes: Record<string, Shape[]>;
   remoteCardState: { cards: number; deck: number; hand: Array<{ id: string; src: string[] }> } | null;
