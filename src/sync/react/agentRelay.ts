@@ -22,6 +22,7 @@ type AgentMessage = {
 
 let ws: WebSocket | null = null;
 let relayActive = false;
+let relayGeneration = 0;
 let unsubscribeShapes: (() => void) | null = null;
 let unsubscribePeerState: (() => void) | null = null;
 let lastRemoteSnapshot = "";
@@ -67,23 +68,36 @@ function handleAgentMessage(message: AgentMessage) {
 }
 
 export function startRelay(port: number = 3210): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (relayActive) {
-      stopRelay();
-    }
+  // Synchronously tear down any previous relay before creating a new one
+  stopRelay();
+  const gen = ++relayGeneration;
 
+  return new Promise((resolve, reject) => {
     ws = new WebSocket(`ws://localhost:${port}`);
 
     ws.onopen = () => {
+      if (gen !== relayGeneration) return;
       relayActive = true;
       console.log("[relay] Connected to agent");
+
+      // Clean slate — relay browser is a bridge, not a player
+      useShapeStore.getState().setShapes([]);
 
       // Send initial remote shapes snapshot
       forwardRemoteShapesToAgent();
 
+      // Seed the agent with existing action log history
+      const { actionLog } = getPeerSyncUiStateSnapshot();
+      if (actionLog.length > 0) {
+        sendToAgent({
+          type: "action-log-snapshot",
+          payload: { entries: actionLog },
+        });
+      }
+
       // Watch for remote shape changes (from PeerJS peers) → forward to agent
       unsubscribePeerState = subscribePeerSyncUiState(() => {
-        if (!relayActive) return;
+        if (gen !== relayGeneration) return;
         forwardRemoteShapesToAgent();
       });
 
@@ -113,10 +127,14 @@ export function startRelay(port: number = 3210): Promise<void> {
     };
 
     ws.onerror = () => {
+      if (gen !== relayGeneration) return;
+      ws = null;
+      cleanup();
       reject(new Error("Failed to connect to agent"));
     };
 
     ws.onmessage = (event) => {
+      if (gen !== relayGeneration) return;
       try {
         const message = JSON.parse(
           typeof event.data === "string" ? event.data : ""
@@ -128,6 +146,7 @@ export function startRelay(port: number = 3210): Promise<void> {
     };
 
     ws.onclose = () => {
+      if (gen !== relayGeneration) return;
       console.log("[relay] Disconnected from agent");
       cleanup();
     };
