@@ -12,11 +12,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "ws": "^8.18.0",
+    "@vescofire/peersync": "^0.1.0",
+    "node-datachannel": "^0.32.1",
+    "peerjs": "^1.5.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/ws": "^8.5.10",
     "typescript": "^5.2.2",
     "vitest": "^4.0.18"
   }
