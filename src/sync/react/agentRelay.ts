@@ -26,6 +26,9 @@ let relayGeneration = 0;
 let unsubscribeShapes: (() => void) | null = null;
 let unsubscribePeerState: (() => void) | null = null;
 let lastRemoteSnapshot = "";
+let forwardTimer: ReturnType<typeof setTimeout> | null = null;
+
+const FORWARD_DEBOUNCE_MS = 200;
 
 const messageListeners = new Set<(msg: AgentMessage) => void>();
 
@@ -35,16 +38,24 @@ function sendToAgent(message: AgentMessage) {
   }
 }
 
-function forwardRemoteShapesToAgent() {
+function forwardRemoteShapesToAgentNow() {
   const { receivedDataMap } = getPeerSyncUiStateSnapshot();
   const serialized = JSON.stringify(receivedDataMap);
-  // Avoid sending duplicate snapshots
   if (serialized === lastRemoteSnapshot) return;
   lastRemoteSnapshot = serialized;
   sendToAgent({
     type: "sync:remote-shapes",
     payload: receivedDataMap,
   });
+}
+
+/** Debounced forward — avoids flooding the agent during drags/resizes. */
+function forwardRemoteShapesToAgent() {
+  if (forwardTimer) clearTimeout(forwardTimer);
+  forwardTimer = setTimeout(() => {
+    forwardTimer = null;
+    forwardRemoteShapesToAgentNow();
+  }, FORWARD_DEBOUNCE_MS);
 }
 
 function applyAgentShapes(shapes: Shape[]) {
@@ -83,8 +94,8 @@ export function startRelay(port: number = 3210): Promise<void> {
       // Clean slate — relay browser is a bridge, not a player
       useShapeStore.getState().setShapes([]);
 
-      // Send initial remote shapes snapshot
-      forwardRemoteShapesToAgent();
+      // Send initial remote shapes snapshot (immediate, not debounced)
+      forwardRemoteShapesToAgentNow();
 
       // Seed the agent with existing action log history
       const { actionLog } = getPeerSyncUiStateSnapshot();
@@ -155,6 +166,7 @@ export function startRelay(port: number = 3210): Promise<void> {
 
 function cleanup() {
   relayActive = false;
+  if (forwardTimer) { clearTimeout(forwardTimer); forwardTimer = null; }
   unsubscribePeerState?.();
   unsubscribePeerState = null;
   unsubscribeShapes?.();
