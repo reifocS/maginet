@@ -1,19 +1,23 @@
+// WebRTC polyfill — MUST be first, before any PeerJS imports
+import polyfill from "node-datachannel/polyfill";
+Object.assign(globalThis, polyfill);
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { AgentWebSocketServer } from "./server.js";
+import { createAgentPeer } from "./peer.js";
 import { AgentGameState, type Shape } from "./state.js";
 import { createToolHandlers, TOOL_DEFINITIONS } from "./mcp.js";
 import { loadDeckFromList, fetchCardMetaByImageUrl } from "./scryfall.js";
 import type { Visibility } from "./visibility.js";
 
-function parseArgs(argv: string[]): { port: number; visibility: Visibility } {
-  let port = 3210;
+function parseArgs(argv: string[]): { peer: string | null; visibility: Visibility } {
+  let peer: string | null = null;
   let visibility: Visibility = "fair";
 
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--port" && argv[i + 1]) {
-      port = parseInt(argv[i + 1], 10);
+    if (argv[i] === "--peer" && argv[i + 1]) {
+      peer = argv[i + 1];
     }
     if (argv[i] === "--visibility" && argv[i + 1]) {
       const v = argv[i + 1];
@@ -24,14 +28,13 @@ function parseArgs(argv: string[]): { port: number; visibility: Visibility } {
     }
   }
 
-  return { port, visibility };
+  return { peer, visibility };
 }
 
 async function main() {
-  const { port, visibility } = parseArgs(process.argv.slice(2));
+  const { peer: initialPeer, visibility } = parseArgs(process.argv.slice(2));
 
   const gameState = new AgentGameState();
-  const wsServer = new AgentWebSocketServer({ port });
   const remoteShapes: Record<string, Shape[]> = {};
   let remoteCardState: { cards: number; deck: number; hand: Array<{ id: string; src: string[] }> } | null = null;
   const MAX_ACTION_LOG = 200;
@@ -40,29 +43,6 @@ async function main() {
     actionLog.push(entry);
     if (actionLog.length > MAX_ACTION_LOG) actionLog.splice(0, actionLog.length - MAX_ACTION_LOG);
   };
-
-  const assignedPort = await wsServer.start();
-  console.error(`[maginet-agent] WebSocket server listening on port ${assignedPort}`);
-  console.error(`[maginet-agent] Visibility: ${visibility}`);
-
-  // Send current shapes to the relay browser when it connects
-  wsServer.onConnect(() => {
-    const currentShapes = gameState.getAgentShapes();
-    if (currentShapes.length > 0) {
-      wsServer.send({
-        type: "sync:agent-shapes",
-        payload: currentShapes,
-      });
-    }
-  });
-
-  // Broadcast agent shape changes to the relay browser
-  gameState.subscribeShapes((nextShapes) => {
-    wsServer.send({
-      type: "sync:agent-shapes",
-      payload: nextShapes,
-    });
-  });
 
   // Auto-fetch Scryfall metadata for unknown card images
   const pendingLookups = new Set<string>();
@@ -82,68 +62,72 @@ async function main() {
     }
   };
 
-  // Debug: store recent raw message types
-  const debugMessages: Array<{ ts: number; type: string }> = [];
+  // Create PeerJS-based agent peer
+  const agentPeer = createAgentPeer({
+    getLocalShapes: () => gameState.getAgentShapes(),
+    subscribeLocalShapes: (cb) => gameState.subscribeShapes(cb),
+    onRemoteShapes: (peerId, shapes) => {
+      remoteShapes[peerId] = shapes;
+      resolveUnknownCards(shapes);
+    },
+    onPeerReady: (peerId) => {
+      console.error(`[maginet-agent] Agent peer ID: ${peerId}`);
+      console.error(`[maginet-agent] Visibility: ${visibility}`);
+    },
+    onError: (error) => {
+      console.error(`[maginet-agent] Peer error: ${error.message}`);
+    },
+  });
 
-  // Listen for sync messages from the browser
-  wsServer.onMessage((message) => {
-    debugMessages.push({ ts: Date.now(), type: message.type });
-    if (debugMessages.length > 50) debugMessages.shift();
-    console.error(`[maginet-agent] WS message: type=${message.type}`);
-    // Remote shapes forwarded from relay browser (all PeerJS players' shapes)
-    if (message.type === "sync:remote-shapes") {
-      const payload = message.payload as Record<string, Shape[]>;
-      if (payload && typeof payload === "object") {
-        // Clear old keys and replace with fresh snapshot
-        for (const key of Object.keys(remoteShapes)) delete remoteShapes[key];
-        for (const [peerId, shapes] of Object.entries(payload)) {
-          if (Array.isArray(shapes)) {
-            remoteShapes[peerId] = shapes;
-            resolveUnknownCards(shapes);
-          }
-        }
+  // Listen for game messages via PeerJS sync client
+  agentPeer.onMessage("action-log", (msg) => {
+    const payload = msg.payload as { action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number; cardSrcs?: string[][] };
+    const cardNames = payload.cardSrcs?.map((srcs) => {
+      const meta = gameState.lookupCardMeta(srcs[0]);
+      return meta?.name ?? srcs[0];
+    });
+    pushActionLog({
+      timestamp: payload.timestamp ?? Date.now(),
+      action: payload.action ?? "unknown",
+      playerId: payload.playerId,
+      playerName: payload.playerName,
+      cardsInHand: payload.cardsInHand,
+      cardNames,
+    });
+    const nameStr = cardNames?.length ? ` (${cardNames.join(", ")})` : "";
+    console.error(`[maginet-agent] Action: ${payload.playerName ?? payload.playerId}: ${payload.action}${nameStr}`);
+  });
+
+  agentPeer.onMessage("action-log-snapshot", (msg) => {
+    const payload = msg.payload as { entries?: Array<{ action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number }> };
+    if (payload.entries) {
+      for (const entry of payload.entries) {
+        pushActionLog({
+          timestamp: entry.timestamp ?? Date.now(),
+          action: entry.action ?? "unknown",
+          playerId: entry.playerId,
+          playerName: entry.playerName,
+          cardsInHand: entry.cardsInHand,
+        });
       }
-    }
-
-    if (message.type === "action-log") {
-      const payload = message.payload as { action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number; cardSrcs?: string[][] };
-      // Resolve card names from image URLs
-      const cardNames = payload.cardSrcs?.map((srcs) => {
-        const meta = gameState.lookupCardMeta(srcs[0]);
-        return meta?.name ?? srcs[0];
-      });
-      pushActionLog({
-        timestamp: payload.timestamp ?? Date.now(),
-        action: payload.action ?? "unknown",
-        playerId: payload.playerId,
-        playerName: payload.playerName,
-        cardsInHand: payload.cardsInHand,
-        cardNames,
-      });
-      const nameStr = cardNames?.length ? ` (${cardNames.join(", ")})` : "";
-      console.error(`[maginet-agent] Action: ${payload.playerName ?? payload.playerId}: ${payload.action}${nameStr}`);
-    }
-
-    if (message.type === "action-log-snapshot") {
-      const payload = message.payload as { entries?: Array<{ action?: string; playerId?: string; playerName?: string; cardsInHand?: number; timestamp?: number }> };
-      if (payload.entries) {
-        for (const entry of payload.entries) {
-          pushActionLog({
-            timestamp: entry.timestamp ?? Date.now(),
-            action: entry.action ?? "unknown",
-            playerId: entry.playerId,
-            playerName: entry.playerName,
-            cardsInHand: entry.cardsInHand,
-          });
-        }
-      }
-    }
-
-    if (message.type === "card-state-sync") {
-      const payload = message.payload as { cards: number; deck: number; hand?: Array<{ id: string; src: string[] }> };
-      remoteCardState = { cards: payload.cards, deck: payload.deck, hand: payload.hand ?? [] };
     }
   });
+
+  agentPeer.onMessage("card-state-sync", (msg) => {
+    const payload = msg.payload as { cards: number; deck: number; hand?: Array<{ id: string; src: string[] }> };
+    remoteCardState = { cards: payload.cards, deck: payload.deck, hand: payload.hand ?? [] };
+  });
+
+  // Start PeerJS peer
+  await agentPeer.start();
+
+  // Auto-connect to a browser peer if --peer was given
+  if (initialPeer) {
+    console.error(`[maginet-agent] Auto-connecting to peer: ${initialPeer}`);
+    agentPeer.connect(initialPeer).catch((e: unknown) => {
+      console.error(`[maginet-agent] Auto-connect failed: ${e}`);
+    });
+  }
 
   // Create MCP server
   const mcp = new McpServer({
@@ -154,7 +138,7 @@ async function main() {
   // Mutable context — handlers read current values of remoteShapes/remoteCardState
   const toolCtx = {
     state: gameState,
-    server: wsServer,
+    server: agentPeer,
     visibility,
     remoteShapes,
     actionLog,
@@ -164,6 +148,29 @@ async function main() {
   };
 
   const handlers = createToolHandlers(toolCtx);
+
+  // connectToPeer tool — lets the agent connect to a browser
+  mcp.tool(
+    "connectToPeer",
+    "Connect to a Maginet browser by its peer ID.",
+    { peerId: z.string().describe("The PeerJS peer ID shown in the browser") },
+    async (args) => {
+      try {
+        await agentPeer.connect(args.peerId);
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ success: true, connectedTo: args.peerId, agentPeerId: agentPeer.localPeerId() }),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Failed to connect: ${e}` }],
+          isError: true,
+        };
+      }
+    }
+  );
 
   // Register loadDeck separately (async Scryfall fetch)
   mcp.tool(
@@ -222,17 +229,6 @@ async function main() {
     }
   );
 
-  // Debug tool to check what messages the agent receives
-  mcp.tool(
-    "debugMessages",
-    "Show recent WebSocket messages received (for debugging sync issues).",
-    async () => {
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify({ connected: wsServer.isConnected(), messages: debugMessages }, null, 2) }],
-      };
-    }
-  );
-
   // Register remaining tools dynamically
   for (const def of TOOL_DEFINITIONS) {
     if (def.name === "loadDeck" || def.name === "loadSnapshot") continue; // already registered
@@ -247,7 +243,7 @@ async function main() {
     const zodShape: Record<string, z.ZodType> = {};
 
     for (const [key, schema] of Object.entries(props)) {
-      const s = schema as { type: string };
+      const s = schema as { type: string; properties?: Record<string, { type: string }>; required?: string[] };
       let zodType: z.ZodType;
       if (s.type === "string") {
         zodType = z.string();
@@ -257,6 +253,19 @@ async function main() {
         zodType = z.number();
       } else if (s.type === "array") {
         zodType = z.array(z.number());
+      } else if (s.type === "object" && s.properties) {
+        // Build a proper z.object from nested properties
+        const nested: Record<string, z.ZodType> = {};
+        const nestedRequired = s.required ?? [];
+        for (const [nk, ns] of Object.entries(s.properties)) {
+          let nt: z.ZodType;
+          if (ns.type === "string") nt = z.string();
+          else if (ns.type === "number") nt = z.number();
+          else if (ns.type === "boolean") nt = z.boolean();
+          else nt = z.unknown();
+          nested[nk] = nestedRequired.includes(nk) ? nt : nt.optional();
+        }
+        zodType = z.object(nested);
       } else if (s.type === "object") {
         zodType = z.record(z.string(), z.unknown());
       } else {

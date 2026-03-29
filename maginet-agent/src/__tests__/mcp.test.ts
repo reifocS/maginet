@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createToolHandlers } from "../mcp.js";
-import type { AgentWebSocketServer } from "../server.js";
+import type { AgentServer } from "../mcp.js";
 import { AgentGameState } from "../state.js";
 
 const makeCard = (id: string) => ({ id, src: [`https://example.com/${id}.png`] });
@@ -25,7 +25,7 @@ describe("MCP tool handlers", () => {
     server = mockServer();
     handlers = createToolHandlers({
       state,
-      server: server as unknown as AgentWebSocketServer,
+      server: server as unknown as AgentServer,
       visibility: "full",
       remoteShapes: {},
       remoteCardState: null,
@@ -95,7 +95,7 @@ describe("MCP tool handlers", () => {
 
     const fairHandlers = createToolHandlers({
       state,
-      server: server as unknown as AgentWebSocketServer,
+      server: server as unknown as AgentServer,
       visibility: "fair",
       remoteShapes: {},
       remoteCardState: null,
@@ -121,7 +121,7 @@ describe("MCP tool handlers", () => {
   it("getBoardState returns shapes", async () => {
     const boardHandlers = createToolHandlers({
       state,
-      server: server as unknown as AgentWebSocketServer,
+      server: server as unknown as AgentServer,
       visibility: "full",
       remoteShapes: {
         "browser-peer": [
