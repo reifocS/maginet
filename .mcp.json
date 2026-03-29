@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "maginet": {
+      "command": "node",
+      "args": ["./maginet-agent/dist/index.js", "--port", "3210", "--visibility", "full"]
+    }
+  }
+}

@@ -6,6 +6,7 @@ export type ActionLogEntry = {
   action: string;
   cardsInHand: number;
   timestamp?: number;
+  cardSrcs?: string[][];
 };
 
 export default function ActionLog({

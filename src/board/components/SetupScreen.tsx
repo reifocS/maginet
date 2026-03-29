@@ -6,6 +6,7 @@ import type Peer from "peerjs";
 import type { DataConnection } from "peerjs";
 import Button from "../../components/ui/Button";
 import Input, { Textarea } from "../../components/ui/Input";
+import { startRelay, stopRelay } from "../../sync/react/agentRelay";
 
 interface SetupScreenProps {
   deckParam: string;
@@ -210,6 +211,7 @@ export default function SetupScreen({
                 </div>
               </div>
             </div>
+            <AgentRelayPanel />
             <div className="setup-actions flex gap-2.5 justify-end max-[720px]:justify-stretch flex-wrap">
               <Button
                 type="button"
@@ -229,6 +231,70 @@ export default function SetupScreen({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AgentRelayPanel() {
+  const [port, setPort] = useState("3210");
+  const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      await startRelay(parseInt(port, 10));
+      setConnected(true);
+    } catch {
+      setConnected(false);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    stopRelay();
+    setConnected(false);
+  };
+
+  return (
+    <div className="setup-panel win-bevel flex flex-col gap-2 rounded bg-win-bg-light p-2.5 col-span-2 max-[720px]:col-span-1">
+      <label className="setup-label text-[11px] tracking-[0.12em] uppercase text-win-text-muted">
+        AI Agent Relay
+      </label>
+      <div className="setup-input-row flex gap-2.5 items-center max-[720px]:flex-col max-[720px]:items-stretch">
+        <Input
+          className="setup-input w-24 p-3 text-[13px] leading-[1.4] shadow-none"
+          type="text"
+          value={port}
+          onChange={(event) => setPort(event.target.value)}
+          placeholder="Port"
+          disabled={connected}
+        />
+        {connected ? (
+          <Button
+            type="button"
+            className="setup-button ghost rounded px-3.5 py-2 text-xs bg-win-header-bg"
+            onClick={handleDisconnect}
+          >
+            Disconnect
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="setup-button primary rounded px-3.5 py-2 text-xs bg-win-hover hover:bg-[#f5f5f5]"
+            onClick={handleConnect}
+            disabled={connecting}
+          >
+            {connecting ? "Connecting..." : "Start Relay"}
+          </Button>
+        )}
+      </div>
+      <div className="setup-hint text-[11px] text-win-text-muted">
+        {connected
+          ? "Relay active. The AI agent plays through this browser. Open a second tab to play against it."
+          : "Bridge a local MCP agent to PeerJS players. This browser relays — open another tab to play."}
       </div>
     </div>
   );
