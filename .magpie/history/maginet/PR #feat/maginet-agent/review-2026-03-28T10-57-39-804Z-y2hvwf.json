@@ -1,0 +1,200 @@
+{
+  "timestamp": "2026-03-28T10:57:39.804Z",
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "logic",
+      "file": "maginet-agent/src/scryfall.ts",
+      "title": "Scryfall deck loading returns only 1 copy per unique card",
+      "description": "parseDeckList(\"4 Lightning Bolt\") sends 4 identical identifiers to /cards/collection, which deduplicates them. A \"4 Lightning Bolt\" entry yields 1 card, not 4. This fundamentally breaks deck loading.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "parseDeckList(\"4 Lightning Bolt\") sends 4 identical identifiers to /cards/collection, which deduplicates them. A \"4 Lightning Bolt\" entry yields 1 card, not 4. This fundamentally breaks deck loading."
+      ]
+    },
+    {
+      "severity": "high",
+      "category": "data-loss",
+      "file": "maginet-agent/src/state.ts",
+      "title": "sendToHand loses card metadata",
+      "description": "Returning a card from board to hand creates {id, src} but drops meta (name, mana cost, etc.). getHand then shows cards with no identifying info.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Returning a card from board to hand creates {id, src} but drops meta (name, mana cost, etc.). getHand then shows cards with no identifying info."
+      ]
+    },
+    {
+      "severity": "high",
+      "category": "data-loss",
+      "file": "maginet-agent/src/state.ts",
+      "title": "sendToDeck has the same metadata loss",
+      "description": "Same pattern as sendToHand — returning a card from board to deck drops meta (name, mana cost, etc.).",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Same pattern as sendToHand — returning a card from board to deck drops meta (name, mana cost, etc.)."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "validation",
+      "file": "maginet-agent/src/mcp.ts",
+      "title": "Dynamic Zod schema loses nested object validation",
+      "description": "addCounter.counter's required label field isn't enforced; any object passes.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "addCounter.counter's required label field isn't enforced; any object passes."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "logic",
+      "file": "maginet-agent/src/state.ts",
+      "title": "loadSnapshot doesn't clear existing shapes",
+      "description": "Loading twice duplicates all shapes instead of replacing them.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Loading twice duplicates all shapes instead of replacing them."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "runtime-error",
+      "file": "maginet-agent/src/scryfall.ts",
+      "title": "card_faces[].image_uris can be undefined",
+      "description": "Some Scryfall card layouts don't have per-face image URIs; code will throw when accessing them.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Some Scryfall card layouts don't have per-face image URIs; code will throw when accessing them."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "state-management",
+      "file": "maginet-agent/src/index.ts",
+      "title": "Agent connection state diverges between Zustand store and local component state",
+      "description": "If WebSocket disconnects unexpectedly, UI still shows \"connected\". Should derive from connectedAgentPeerIds.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "If WebSocket disconnects unexpectedly, UI still shows \"connected\". Should derive from connectedAgentPeerIds."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "performance",
+      "file": "maginet-agent/src/state.ts",
+      "title": "untapAll triggers N broadcasts",
+      "description": "Each shape update sends a full snapshot over WebSocket. Should batch all untap operations into a single broadcast.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Each shape update sends a full snapshot over WebSocket. Should batch all untap operations into a single broadcast."
+      ]
+    },
+    {
+      "severity": "medium",
+      "category": "logic",
+      "file": "maginet-agent/src/state.ts",
+      "title": "Sort-based shuffle is biased",
+      "description": "For a 60-card deck, the sort(() => Math.random()) pattern doesn't produce uniform permutations. Use Fisher-Yates.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "For a 60-card deck, the sort(() => Math.random()) pattern doesn't produce uniform permutations. Use Fisher-Yates."
+      ]
+    },
+    {
+      "severity": "low",
+      "category": "race-condition",
+      "file": "maginet-agent/src/index.ts",
+      "title": "Race condition in disconnectAgent double cleanup",
+      "description": "disconnectAgent may perform double cleanup if called concurrently.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "disconnectAgent may perform double cleanup if called concurrently."
+      ]
+    },
+    {
+      "severity": "low",
+      "category": "validation",
+      "file": "maginet-agent/src/index.ts",
+      "title": "Agent port input accepts non-numeric text, no validation feedback",
+      "description": "No input validation or user feedback when non-numeric text is entered for agent port.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "No input validation or user feedback when non-numeric text is entered for agent port."
+      ]
+    },
+    {
+      "severity": "low",
+      "category": "memory-leak",
+      "file": "maginet-agent/src/state.ts",
+      "title": "actionLog grows unboundedly",
+      "description": "actionLog array grows without limit, causing a memory leak for long sessions.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "actionLog array grows without limit, causing a memory leak for long sessions."
+      ]
+    },
+    {
+      "severity": "low",
+      "category": "validation",
+      "file": "maginet-agent/src/index.ts",
+      "title": "--visibility CLI arg isn't validated",
+      "description": "The --visibility command-line argument is not validated against allowed values.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "The --visibility command-line argument is not validated against allowed values."
+      ]
+    },
+    {
+      "severity": "nitpick",
+      "category": "duplication",
+      "file": "maginet-agent/src/state.ts",
+      "title": "Duplicated generateId/shuffle across state.ts and scryfall.ts",
+      "description": "generateId and shuffle utility functions are duplicated in state.ts and scryfall.ts. Should be extracted to a shared utility.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "generateId and shuffle utility functions are duplicated in state.ts and scryfall.ts. Should be extracted to a shared utility."
+      ]
+    },
+    {
+      "severity": "nitpick",
+      "category": "deprecation",
+      "file": "maginet-agent/src/scryfall.ts",
+      "title": "String.prototype.substr is deprecated",
+      "description": "Uses deprecated substr() method — should use .slice() or .substring() instead.",
+      "raisedBy": [
+        "claude-code"
+      ],
+      "descriptions": [
+        "Uses deprecated substr() method — should use .slice() or .substring() instead."
+      ]
+    }
+  ]
+}
